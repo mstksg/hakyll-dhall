@@ -24,22 +24,24 @@ ghc-options:
 
 dependencies:
 - base >= 4.7 && < 5
+- data-default-class
+- dhall > 1.17
 - hakyll
 
 library:
   source-dirs: src
   dependencies:
-  - dhall > 1.17
-  - transformers
-  - microlens
-  - prettyprinter
-  - prettyprinter-ansi-terminal
   - binary
   - cborg
-  - text
-  - filepath
-  - exceptions
   - containers
+  - exceptions
+  - filepath
+  - microlens
+  - mtl
+  - prettyprinter
+  - prettyprinter-ansi-terminal
+  - text
+  - transformers
 
 executables:
   hakyll-dhall-test-app:

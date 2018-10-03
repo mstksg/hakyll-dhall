@@ -3,19 +3,26 @@
 {-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE RecordWildCards    #-}
 {-# LANGUAGE TupleSections      #-}
-{-# LANGUAGE TypeApplications   #-}
 
-module Hakyll.Web.Dhall where
+module Hakyll.Web.Dhall (
+    DExpr(..)
+  , DhallCompilerOptions(..), DhallCompilerTrust(..)
+  , defaultDhallCompilerOptions
+  , dhallCompiler
+  , dhallCompilerWith
+  , dhallTypeCompiler
+  , dhallTypeCompilerWith
+  ) where
 
--- module Hakyll.Web.Dhall (
---   ) where
-
+import           Control.Monad.Error.Class
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans.State.Strict
+import           Data.Default.Class
 import           Data.IORef
 import           Data.Maybe
 import           Data.Traversable
 import           Data.Typeable                         (Typeable)
+import           Dhall
 import           Dhall.Binary
 import           Dhall.Core
 import           Dhall.Import
@@ -43,33 +50,37 @@ import qualified Data.Text                             as T
 import qualified Data.Text.Prettyprint.Doc             as PP
 import qualified Data.Text.Prettyprint.Doc.Render.Text as PP
 
-newtype E = E { getE :: Expr Src X }
+newtype DExpr = DExpr { getDExpr :: Expr Src X }
     deriving (Generic, Typeable)
 
-instance Bi.Binary E where
+instance Bi.Binary DExpr where
     put = Bi.putBuilder
         . CBOR.toBuilder
         . CBOR.encodeTerm
         . encode V_1_0
         . fmap absurd
-        . getE
+        . getDExpr
     get = do
-      bs <- Bi.getRemainingLazyByteString
-      case CBOR.deserialiseFromBytes CBOR.decodeTerm bs of
-        Left  e      -> fail $ show e
-        Right (_, t) -> case decode t of
-          Left  e -> fail $ show e
-          Right e -> fmap E . for e $ \i -> fail $
-               "Cannot deserialize dhall expression with imports: "
-            ++ T.unpack (PP.renderStrict (PP.layoutSmart layoutOpts (PP.pretty i)))
+        bs     <- Bi.getRemainingLazyByteString
+        (_, t) <- either (fail . show) pure $
+                    CBOR.deserialiseFromBytes CBOR.decodeTerm bs
+        e      <- either (fail . show) pure $
+                    decode t
+        fmap DExpr . for e $ \i -> fail $
+          "Cannot deserialize dhall expression with imports: "
+            ++ T.unpack (iStr i)
+      where
+        iStr = PP.renderStrict
+             . PP.layoutSmart layoutOpts
+             . PP.pretty
 
-instance Writable E where
+instance Writable DExpr where
     write fp e = withFile fp WriteMode $ \h ->
       PP.renderIO h
         . PP.layoutSmart layoutOpts
         . PP.unAnnotate
         . prettyExpr
-        . getE
+        . getDExpr
         . itemBody
         $ e
 
@@ -92,17 +103,27 @@ data DhallCompilerTrust = DCTLocal
   deriving (Generic, Typeable, Show, Eq, Ord)
 
 data DhallCompilerOptions = DCO
-    { dcoTrust :: S.Set DhallCompilerTrust
+    { dcoPath  :: Maybe FilePath
+    , dcoTrust :: S.Set DhallCompilerTrust
     }
 
 defaultDhallCompilerOptions :: DhallCompilerOptions
 defaultDhallCompilerOptions = DCO
-    { dcoTrust = S.empty
+    { dcoPath  = Nothing
+    , dcoTrust = S.empty
     }
 
-dhallCompiler :: DhallCompilerOptions -> Compiler (Item E)
-dhallCompiler DCO{..} = do
-    fp <- toFilePath <$> getUnderlying
+instance Default DhallCompilerOptions where
+    def = defaultDhallCompilerOptions
+
+dhallCompiler :: Compiler (Item DExpr)
+dhallCompiler = dhallCompilerWith defaultDhallCompilerOptions
+
+dhallCompilerWith :: DhallCompilerOptions -> Compiler (Item DExpr)
+dhallCompilerWith DCO{..} = do
+    fp <- case dcoPath of
+      Just p  -> pure p
+      Nothing -> toFilePath <$> getUnderlying
     let imp = mkImport fp
     (res, imps) <- unsafeCompiler $ do
       iRef <- newIORef []
@@ -113,7 +134,7 @@ dhallCompiler DCO{..} = do
               exprFromImport i
       (res,) <$> readIORef iRef
     compilerTellDependencies $ mapMaybe mkDep imps
-    makeItem $ E res
+    makeItem $ DExpr res
   where
     mkDep :: Import -> Maybe Dependency
     mkDep i = case importType (importHashed i) of
@@ -135,3 +156,20 @@ dhallCompiler DCO{..} = do
         | otherwise                     -> Just neverTrust
       Missing                           -> Just neverTrust
     neverTrust = PatternDependency mempty mempty
+
+dhallTypeCompilerWith
+    :: DhallCompilerOptions
+    -> Type a
+    -> Compiler (Item a)
+dhallTypeCompilerWith dco t = traverse (inp t . getDExpr)
+                          =<< dhallCompilerWith dco
+  where
+    inp :: Type a -> Expr Src X -> Compiler a
+    inp t' e = case rawInput t' e of
+      Nothing -> throwError ["Error interpreting Dhall expression as desired type."]
+      Just x  -> pure x
+
+dhallTypeCompiler
+    :: Type a
+    -> Compiler (Item a)
+dhallTypeCompiler = dhallTypeCompilerWith defaultDhallCompilerOptions
