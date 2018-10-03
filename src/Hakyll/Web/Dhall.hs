@@ -5,13 +5,17 @@
 {-# LANGUAGE TupleSections      #-}
 
 module Hakyll.Web.Dhall (
-    DExpr(..)
-  , DhallCompilerOptions(..), DhallCompilerTrust(..)
+  -- * Configuration and Options
+    DhallCompilerOptions(..), DhallCompilerTrust(..)
   , defaultDhallCompilerOptions
-  , dhallCompiler
-  , dhallCompilerWith
-  , dhallTypeCompiler
-  , dhallTypeCompilerWith
+  -- * Load Dhall Files
+  -- ** As as custom Haskell types
+  , loadDhall, loadDhallWith
+  -- ** As raw expressions
+  , DExpr(..)
+  , loadDExpr, loadDExprWith
+  -- * Compile Dhall Files
+  , dhallCompiler, dhallCompilerWith
   ) where
 
 import           Control.Monad.Error.Class
@@ -103,14 +107,12 @@ data DhallCompilerTrust = DCTLocal
   deriving (Generic, Typeable, Show, Eq, Ord)
 
 data DhallCompilerOptions = DCO
-    { dcoPath  :: Maybe FilePath
-    , dcoTrust :: S.Set DhallCompilerTrust
+    { dcoTrust :: S.Set DhallCompilerTrust
     }
 
 defaultDhallCompilerOptions :: DhallCompilerOptions
 defaultDhallCompilerOptions = DCO
-    { dcoPath  = Nothing
-    , dcoTrust = S.empty
+    { dcoTrust = S.empty
     }
 
 instance Default DhallCompilerOptions where
@@ -119,15 +121,24 @@ instance Default DhallCompilerOptions where
 dhallCompiler :: Compiler (Item DExpr)
 dhallCompiler = dhallCompilerWith defaultDhallCompilerOptions
 
-dhallCompilerWith :: DhallCompilerOptions -> Compiler (Item DExpr)
-dhallCompilerWith DCO{..} = do
-    fp <- case dcoPath of
-      Just p  -> pure p
-      Nothing -> toFilePath <$> getUnderlying
-    let imp = mkImport fp
+dhallCompilerWith
+    :: DhallCompilerOptions
+    -> Compiler (Item DExpr)
+dhallCompilerWith dco = loadDExprWith dco =<< getUnderlying
+
+loadDExpr
+    :: Identifier
+    -> Compiler (Item DExpr)
+loadDExpr = loadDExprWith defaultDhallCompilerOptions
+
+loadDExprWith
+    :: DhallCompilerOptions
+    -> Identifier
+    -> Compiler (Item DExpr)
+loadDExprWith DCO{..} ident = do
     (res, imps) <- unsafeCompiler $ do
       iRef <- newIORef []
-      res <- evalStateT (loadWith (Embed imp)) $
+      res <- evalStateT (loadWith (Embed (mkImport (toFilePath ident)))) $
         emptyStatus "./"
           & resolver .~ \i -> do
               liftIO $ modifyIORef iRef (i:)
@@ -157,19 +168,21 @@ dhallCompilerWith DCO{..} = do
       Missing                           -> Just neverTrust
     neverTrust = PatternDependency mempty mempty
 
-dhallTypeCompilerWith
+loadDhallWith
     :: DhallCompilerOptions
     -> Type a
+    -> Identifier
     -> Compiler (Item a)
-dhallTypeCompilerWith dco t = traverse (inp t . getDExpr)
-                          =<< dhallCompilerWith dco
+loadDhallWith dco t ident = traverse (inp t . getDExpr)
+                        =<< loadDExprWith dco ident
   where
     inp :: Type a -> Expr Src X -> Compiler a
     inp t' e = case rawInput t' e of
       Nothing -> throwError ["Error interpreting Dhall expression as desired type."]
       Just x  -> pure x
 
-dhallTypeCompiler
+loadDhall
     :: Type a
+    -> Identifier
     -> Compiler (Item a)
-dhallTypeCompiler = dhallTypeCompilerWith defaultDhallCompilerOptions
+loadDhall = loadDhallWith defaultDhallCompilerOptions

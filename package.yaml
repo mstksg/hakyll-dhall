@@ -9,10 +9,11 @@ copyright:           "(c) Justin Le 2018"
 extra-source-files:
 - README.md
 - CHANGELOG.md
+- test-dhall/*
 
 # Metadata used when publishing your package
-# synopsis:            Short description of your package
-# category:            Web
+synopsis:            Dhall compiler for Hakyll
+category:            Web
 
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
@@ -21,10 +22,10 @@ description:         Please see the README on GitHub at <https://github.com/mstk
 
 ghc-options:
 - -Wall
+- -Wcompat
 
 dependencies:
 - base >= 4.7 && < 5
-- data-default-class
 - dhall > 1.17
 - hakyll
 
@@ -34,12 +35,11 @@ library:
   - binary
   - cborg
   - containers
-  - exceptions
+  - data-default-class
   - filepath
   - microlens
   - mtl
   - prettyprinter
-  - prettyprinter-ansi-terminal
   - text
   - transformers
 
@@ -53,14 +53,3 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - hakyll-dhall
-
-# tests:
-#   hakyll-dhall-test:
-#     main:                Spec.hs
-#     source-dirs:         test
-#     ghc-options:
-#     - -threaded
-#     - -rtsopts
-#     - -with-rtsopts=-N
-#     dependencies:
-#     - hakyll-dhall
