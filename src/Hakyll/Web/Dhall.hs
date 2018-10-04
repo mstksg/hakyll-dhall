@@ -3,6 +3,7 @@
 {-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE RecordWildCards    #-}
 {-# LANGUAGE TupleSections      #-}
+{-# OPTIONS_GHC -Wno-orphans    #-}
 
 module Hakyll.Web.Dhall (
   -- * Configuration and Options
@@ -54,6 +55,9 @@ import qualified Data.Text                             as T
 import qualified Data.Text.Prettyprint.Doc             as PP
 import qualified Data.Text.Prettyprint.Doc.Render.Text as PP
 
+-- | Newtype wrapper over @'Expr' 'Src' 'X'@ (A Dhall expression) with an
+-- appropriate 'Bi.Binary' instance, meant to be usable as a compilable
+-- Hakyll result
 newtype DExpr = DExpr { getDExpr :: Expr Src X }
     deriving (Generic, Typeable)
 
@@ -78,13 +82,16 @@ instance Bi.Binary DExpr where
              . PP.layoutSmart layoutOpts
              . PP.pretty
 
+-- TODO: maybe offer pretty v unpretty?
 instance Writable DExpr where
+    write fp = write fp . fmap getDExpr
+
+instance PP.Pretty a => Writable (Expr s a) where
     write fp e = withFile fp WriteMode $ \h ->
       PP.renderIO h
         . PP.layoutSmart layoutOpts
         . PP.unAnnotate
         . prettyExpr
-        . getDExpr
         . itemBody
         $ e
 
@@ -101,23 +108,47 @@ mkImport fp = Import
           []   -> File (Directory []) ""
           x:xs -> File (Directory xs) x
 
+-- | Types of external imports that a Dhall file may have.
 data DhallCompilerTrust = DCTLocal
+                            -- ^ File on local filesystem outside of
+                            -- project directory, and therefore not tracked
+                            -- by Hakyll
                         | DCTRemote
+                            -- ^ Link to remote resource over a network
+                            -- connection
                         | DCTEnv
+                            -- ^ Reference to environment variable on
+                            -- machine
   deriving (Generic, Typeable, Show, Eq, Ord)
 
+-- | Options for loading Dhall files
 data DhallCompilerOptions = DCO
     { dcoTrust :: S.Set DhallCompilerTrust
+        -- ^ Set of "trusted" import behaviors.  Files with external
+        -- references or imports that aren't described in this set are
+        -- always rebuilt every time.
     }
+  deriving (Generic, Typeable, Show, Eq, Ord)
 
+-- | Default 'DhallCompilerOptions'.  Default behavior is to trust no
+-- external imports, and to always rebuild files that contain any external
+-- imports (that is, files outside of the project directory, references
+-- to a remote network location, or references to environment variables).
 defaultDhallCompilerOptions :: DhallCompilerOptions
 defaultDhallCompilerOptions = DCO
     { dcoTrust = S.empty
     }
 
+-- | @'def' = 'defaultDhallCompilerOptions'@
 instance Default DhallCompilerOptions where
     def = defaultDhallCompilerOptions
 
+-- TODO: this should leave network locations unnormalized?
+--
+-- TODO: Maybe this should return String instaed, with optiosn for
+-- normalized vs unnormalized vs pretty vs not pretty
+--
+-- basically this could be used to make a dhall server?
 dhallCompiler :: Compiler (Item DExpr)
 dhallCompiler = dhallCompilerWith defaultDhallCompilerOptions
 
