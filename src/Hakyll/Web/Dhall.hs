@@ -3,19 +3,17 @@
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE KindSignatures      #-}
-{-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE TypeApplications    #-}
-{-# LANGUAGE TypeInType          #-}
 
 module Hakyll.Web.Dhall (
   -- * Configuration and Options
     DhallCompilerOptions(..), DhallCompilerTrust(..)
   , defaultDhallCompilerOptions
   -- ** Resolver Behaviors
-  , DhallResolver(..), defaultDhallResolver
+  , DhallResolver(..), DefaultDhallResolver(..)
   -- * Load Dhall Files
   -- ** As as custom Haskell types
   , loadDhall, loadDhallWith
@@ -142,13 +140,18 @@ data DhallCompilerOptions a = DCO
         -- of the project directory, but trust that any URL imports remain
         -- unchanged.
     , dcoMinimize :: Bool
-        -- ^ Strictly for usage with 'dhallCompiler' and
-        -- 'partialDhallCompiler': should the result be "minimized" (all in
-        -- one line) or pretty-printed for human readability?
+        -- ^ Strictly for usage with 'dhallCompiler' and family: should the
+        -- result be "minimized" (all in one line) or pretty-printed for
+        -- human readability?
         --
         -- Can be useful for saving bandwidth.
         --
         -- Default: 'False'
+    , dcoNormalize :: Bool
+        -- ^ If 'True', reduce expressions to normal form before using
+        -- them.
+        --
+        -- Default: 'True'
     }
   deriving (Generic, Typeable)
 
@@ -176,9 +179,10 @@ defaultDhallCompilerOptions
     :: DefaultDhallResolver a
     => DhallCompilerOptions a
 defaultDhallCompilerOptions = DCO
-    { dcoResolver = defaultDhallResolver
-    , dcoTrust    = S.singleton DCTRemote
-    , dcoMinimize = False
+    { dcoResolver  = defaultDhallResolver
+    , dcoTrust     = S.singleton DCTRemote
+    , dcoMinimize  = False
+    , dcoNormalize = True
     }
 
 -- | Helper typeclass to allow functions to be polymorphic over different
@@ -259,7 +263,7 @@ parseRawDhallWith DCO{..} i b =
     case exprFromText (toFilePath i) b of
       Left  e -> throwError . (:[]) $
         "Error parsing raw dhall file: " ++ show e
-      Right e -> makeItem =<< traverse (drRemap dcoResolver) e
+      Right e -> makeItem . normalize =<< traverse (drRemap dcoResolver) e
 
 -- | Parse a Dhall source.
 --
@@ -273,10 +277,16 @@ parseDhallWith
     -> T.Text
     -> Compiler (Item (Expr Src a))
 parseDhallWith dco i b = case dcoResolver dco of
-    DRRaw _ -> parseRawDhallWith dco i b
-    DRFull  -> traverse (resolveDhallImports dco i)
-                 =<< parseRawDhallWith (dco { dcoResolver = defaultDhallResolver })
-                       i b
+    DRRaw _ -> fmap norm <$> parseRawDhallWith dco i b
+    DRFull  -> (fmap . fmap) norm
+             . traverse (resolveDhallImports dco i)
+           =<< parseRawDhallWith (dco { dcoResolver = defaultDhallResolver })
+                 i b
+  where
+    norm :: Eq b => Expr s b -> Expr s b
+    norm
+      | dcoNormalize dco = normalize
+      | otherwise        = id
 
 -- | Resolve all imports in a parsed Dhall expression.
 --
