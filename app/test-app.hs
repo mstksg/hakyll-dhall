@@ -8,7 +8,7 @@ main :: IO ()
 main = hakyll $ do
     match "test-dhall/**" $ do
       route idRoute
-      compile dhallCompiler
+      compile dhallFullCompiler
 
     create ["testparse.txt"] $ do
       route idRoute
