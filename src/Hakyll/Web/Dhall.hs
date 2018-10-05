@@ -167,7 +167,8 @@ data DhallCompilerOptions a = DCO
         -- Default: 'False'
     , dcoNormalize :: Bool
         -- ^ If 'True', reduce expressions to normal form before using
-        -- them.
+        -- them.  Otherwise, attempts to do no normalization and presents
+        -- the file as-is (stripping out comments and annotations)
         --
         -- Default: 'True'
     }
@@ -183,7 +184,9 @@ data DhallResolver :: K.Type -> K.Type where
     -- Default: leave imports unchanged
     DRRaw  :: { drRemap :: Import -> Compiler Import
               } -> DhallResolver Import
-    -- | Completely resolve all imports in IO
+    -- | Completely resolve all imports in IO.  All imports within Hakyll
+    -- project are tracaked, and changes to dependencies will trigger
+    -- rebuilds upstream.
     DRFull :: DhallResolver X
 
 -- | Default 'DhallCompilerOptions'.  If the type variable is not
@@ -226,8 +229,8 @@ instance DefaultDhallResolver a => Default (DhallCompilerOptions a) where
 -- and "fully resolved" versions; it must be called with /TypeApplications/
 --
 -- @
--- 'dhallRawCompiler'  = 'dhallCompiler' @'Import'
--- 'dhallFullCompiler' = 'dhallCompiler' @'X'
+-- 'dhallRawCompiler'  = 'dhallCompiler' \@'Import'
+-- 'dhallFullCompiler' = 'dhallCompiler' \@'X'
 -- @
 --
 -- It might be more convenient to just use 'dhallRawCompiler' or
@@ -246,7 +249,8 @@ dhallRawCompiler :: Compiler (Item String)
 dhallRawCompiler = dhallCompilerWith @Import defaultDhallCompilerOptions
 
 -- | Compile the Dhall file as text according to default
--- 'DhallCompilerOptions', resolving all imports in IO.
+-- 'DhallCompilerOptions', resolving all imports in IO and tracking
+-- dependencies.
 dhallFullCompiler :: Compiler (Item String)
 dhallFullCompiler = dhallCompilerWith @X defaultDhallCompilerOptions
 
@@ -370,7 +374,7 @@ loadDhallExprWith dco i = do
     parseDhallWith dco i b
 
 -- | Load a value of type @a@ that is parsed from a Dhall file at the given
--- 'Identifier'.
+-- 'Identifier'.  Tracks dependencies within project.
 loadDhall
     :: Type a
     -> Identifier
