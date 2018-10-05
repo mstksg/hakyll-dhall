@@ -69,8 +69,8 @@ DCTEnv :: DhallCompilerTrust
 --   inferrable, it can be helpful to use <i>TypeApplications</i> syntax:
 --   
 --   <pre>
---   <tt>defaultCompilerOptions</tt> @Import         -- do not resolve imports
---   <tt>defaultCompilerOptions</tt> @X              -- resolve imports
+--   <tt>defaultCompilerOptions</tt> @<a>Import</a>         -- do not resolve imports
+--   <tt>defaultCompilerOptions</tt> @<a>X</a>              -- resolve imports
 --   </pre>
 defaultDhallCompilerOptions :: DefaultDhallResolver a => DhallCompilerOptions a
 
@@ -78,16 +78,26 @@ defaultDhallCompilerOptions :: DefaultDhallResolver a => DhallCompilerOptions a
 --   
 --   The choice will determine the type of expression that
 --   <a>loadDhallExpr</a> and family will produce.
+--   
+--   Note that at this moment, the only available options are "all or
+--   nothing" --- either resolve all types imports completely and fully, or
+--   none of them. Hopefully one day this library will offer the ability to
+--   resolve only certain types of imports (environment variables, absolute
+--   paths) and not others (remote network, local paths).
 data DhallResolver :: Type -> Type
 
 -- | Leave imports as imports, but optionally remap the destinations.
 --   
+--   <b>Important:</b> <a>drRemap</a> is <i>not</i> applied recursively; it
+--   is only applied once. Any imports in the resulting 'Expr Src Import'
+--   are not re-expanded.
+--   
 --   Default: leave imports unchanged
-[DRRaw] :: {drRemap :: Import -> Compiler Import} -> DhallResolver Import
+[DRRaw] :: {drRemap :: Import -> Compiler (Expr Src Import)} -> DhallResolver Import
 
 -- | Completely resolve all imports in IO. All imports within Hakyll
---   project are tracaked, and changes to dependencies will trigger
---   rebuilds upstream.
+--   project are tracked, and changes to dependencies will trigger rebuilds
+--   upstream.
 [DRFull] :: DhallResolver X
 
 -- | Helper typeclass to allow functions to be polymorphic over different
@@ -160,6 +170,7 @@ parseDhallWith :: DhallCompilerOptions a -> Identifier -> Text -> Compiler (Item
 
 -- | Version of <a>parseDhallWith</a> that only acceps the <a>DRRaw</a>
 --   resolver, remapping the imports with the function in the <a>DRRaw</a>.
+--   Does not perform any normalization.
 parseRawDhallWith :: DhallCompilerOptions Import -> Identifier -> Text -> Compiler (Item (Expr Src Import))
 
 -- | Resolve all imports in a parsed Dhall expression.
