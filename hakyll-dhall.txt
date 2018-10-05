@@ -10,16 +10,11 @@
 @version 0.1.0.0
 
 
--- | Some lifted versions of common functions found in <tt>Prelude</tt> (or
---   <i>base</i> in general).
---   
---   This module is intended to be a catch-all one, so feel free to suggest
---   other functions or submit a PR if you think one would make sense.
---   
---   See <a>Prelude.Backprop.Num</a> for a version with <a>Num</a>
---   constraints instead of <tt>Backprop</tt> constraints, and
---   <a>Prelude.Backprop.Explicit</a> for a version allowing you to provide
---   <tt>zero</tt>, <tt>add</tt>, and <tt>one</tt> explicitly.
+-- | Hakyll compiler and loader for Dhall files. Functions are intended to
+--   track all local dependencies within the project directory, so rebuilds
+--   are properly triggered on up-stream imports. Provides options for
+--   customizing rebuilding behavior for network, environment variable, and
+--   non-project local files.
 module Hakyll.Web.Dhall
 
 -- | Options for loading Dhall files
@@ -72,8 +67,8 @@ DCTEnv :: DhallCompilerTrust
 --   inferrable, it can be helpful to use <i>TypeApplications</i> syntax:
 --   
 --   <pre>
---   <tt>defaultCompilerOptions</tt> <tt>Import         -- do not resolve imports
---   <tt>defaultCompilerOptions</tt> </tt>X              -- resolve imports
+--   <tt>defaultCompilerOptions</tt> @Import         -- do not resolve imports
+--   <tt>defaultCompilerOptions</tt> @X              -- resolve imports
 --   </pre>
 defaultDhallCompilerOptions :: DefaultDhallResolver a => DhallCompilerOptions a
 
