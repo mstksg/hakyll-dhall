@@ -129,8 +129,8 @@ DExpr :: Expr Src a -> DExpr a
 --   <i>TypeApplications</i>
 --   
 --   <pre>
---   <a>dhallRawCompiler</a>  = <a>dhallCompiler</a> <tt><a>Import</a>
---   <a>dhallFullCompiler</a> = <a>dhallCompiler</a> </tt><a>X</a>
+--   <a>dhallRawCompiler</a>  = <a>dhallCompiler</a> @<a>Import</a>
+--   <a>dhallFullCompiler</a> = <a>dhallCompiler</a> @<a>X</a>
 --   </pre>
 --   
 --   It might be more convenient to just use <a>dhallRawCompiler</a> or
@@ -143,7 +143,8 @@ dhallCompiler :: forall a. (DefaultDhallResolver a, Pretty a) => Compiler (Item 
 dhallRawCompiler :: Compiler (Item String)
 
 -- | Compile the Dhall file as text according to default
---   <a>DhallCompilerOptions</a>, resolving all imports in IO.
+--   <a>DhallCompilerOptions</a>, resolving all imports in IO and tracking
+--   dependencies.
 dhallFullCompiler :: Compiler (Item String)
 
 -- | <a>dhallCompiler</a>, but with custom <a>DhallCompilerOptions</a>.
