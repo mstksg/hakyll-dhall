@@ -111,6 +111,14 @@ loadDhallExpr :: DefaultDhallResolver a => Identifier -> Compiler (Item (Expr Sr
 --   <a>DhallCompilerOptions</a>.
 loadDhallExprWith :: DhallCompilerOptions a -> Identifier -> Compiler (Item (Expr Src a))
 
+-- | Newtype wrapper over <tt><a>Expr</a> <a>Src</a> a</tt> (A Dhall
+--   expression) with an appropriate <a>Binary</a> instance, meant to be
+--   usable as a compilable Hakyll result that can be saved with
+--   <a>saveSnapshot</a>, <a>load</a>, etc.
+newtype DExpr a
+DExpr :: Expr Src a -> DExpr a
+[getDExpr] :: DExpr a -> Expr Src a
+
 -- | Compile the Dhall file as text according to default
 --   <a>DhallCompilerOptions</a>. Note that this is polymorphic over both
 --   "raw" and "fully resolved" versions; it must be called with
