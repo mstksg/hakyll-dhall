@@ -36,6 +36,7 @@ module Hakyll.Web.Dhall (
   , loadDhall, loadDhallWith
   -- ** As raw expressions
   , loadDhallExpr, loadDhallExprWith
+  , DExpr(..)
   -- * Compile Dhall Files
   , dhallCompiler
   , dhallRawCompiler, dhallFullCompiler
