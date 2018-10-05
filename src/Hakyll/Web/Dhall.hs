@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE KindSignatures      #-}
+{-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections       #-}
@@ -47,6 +48,7 @@ module Hakyll.Web.Dhall (
   , resolveDhallImports
   ) where
 
+import           Control.Monad
 import           Control.Monad.Error.Class
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans.State.Strict
@@ -178,14 +180,24 @@ data DhallCompilerOptions a = DCO
 --
 -- The choice will determine the type of expression that 'loadDhallExpr'
 -- and family will produce.
+--
+-- Note that at this moment, the only available options are "all or
+-- nothing" --- either resolve all types imports completely and fully, or
+-- none of them. Hopefully one day this library will offer the ability to
+-- resolve only certain types of imports (environment variables, absolute
+-- paths) and not others (remote network, local paths).
 data DhallResolver :: K.Type -> K.Type where
     -- | Leave imports as imports, but optionally remap the destinations.
     --
+    -- __Important:__ 'drRemap' is /not/ applied recursively; it is only
+    -- applied once.  Any imports in the resulting 'Expr Src Import' are
+    -- not re-expanded.
+    --
     -- Default: leave imports unchanged
-    DRRaw  :: { drRemap :: Import -> Compiler Import
+    DRRaw  :: { drRemap :: Import -> Compiler (Expr Src Import)
               } -> DhallResolver Import
     -- | Completely resolve all imports in IO.  All imports within Hakyll
-    -- project are tracaked, and changes to dependencies will trigger
+    -- project are tracked, and changes to dependencies will trigger
     -- rebuilds upstream.
     DRFull :: DhallResolver X
 
@@ -193,8 +205,8 @@ data DhallResolver :: K.Type -> K.Type where
 -- inferrable, it can be helpful to use /TypeApplications/ syntax:
 --
 -- @
--- 'defaultCompilerOptions' \@Import         -- do not resolve imports
--- 'defaultCompilerOptions' \@X              -- resolve imports
+-- 'defaultCompilerOptions' \@'Import'         -- do not resolve imports
+-- 'defaultCompilerOptions' \@'X'              -- resolve imports
 -- @
 defaultDhallCompilerOptions
     :: DefaultDhallResolver a
@@ -215,7 +227,7 @@ class DefaultDhallResolver a where
 
 -- | Leave all imports unchanged
 instance DefaultDhallResolver Import where
-    defaultDhallResolver = DRRaw pure
+    defaultDhallResolver = DRRaw $ pure . Embed
 
 instance DefaultDhallResolver X where
     defaultDhallResolver = DRFull
@@ -223,6 +235,9 @@ instance DefaultDhallResolver X where
 -- | @'def' = 'defaultDhallCompilerOptions'@
 instance DefaultDhallResolver a => Default (DhallCompilerOptions a) where
     def = defaultDhallCompilerOptions
+
+-- TODO: other resolver functions
+-- TODO: maybe one day hakyll can track environment variables?
 
 -- | Compile the Dhall file as text according to default
 -- 'DhallCompilerOptions'.  Note that this is polymorphic over both "raw"
@@ -241,6 +256,7 @@ dhallCompiler
 dhallCompiler = dhallCompilerWith @a defaultDhallCompilerOptions
 
 -- TODO: way to only resolve Env and Absolute and Home?
+-- Need to somehow hook into 'loadWith' so it can be recursive
 
 -- | Compile the Dhall file as text according to default
 -- 'DhallCompilerOptions' while leaving all imports unchanged and
@@ -272,10 +288,9 @@ dhallCompilerWith dco = do
                         . PP.unAnnotate
                         . prettyExpr
 
--- TODO: we need a way to re-label home, absolute, and environment variables
-
 -- | Version of 'parseDhallWith' that only acceps the 'DRRaw' resolver,
--- remapping the imports with the function in the 'DRRaw'.
+-- remapping the imports with the function in the 'DRRaw'.  Does not
+-- perform any normalization.
 parseRawDhallWith
     :: DhallCompilerOptions Import
     -> Identifier
@@ -285,7 +300,7 @@ parseRawDhallWith DCO{..} i b =
     case exprFromText (toFilePath i) b of
       Left  e -> throwError . (:[]) $
         "Error parsing raw dhall file: " ++ show e
-      Right e -> makeItem . normalize =<< traverse (drRemap dcoResolver) e
+      Right e -> makeItem . join =<< traverse (drRemap dcoResolver) e
 
 -- | Parse a Dhall source.
 --
