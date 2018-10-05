@@ -46,6 +46,8 @@ DCO :: DhallResolver a -> Set DhallCompilerTrust -> Bool -> Bool -> DhallCompile
 [dcoMinimize] :: DhallCompilerOptions a -> Bool
 
 -- | If <a>True</a>, reduce expressions to normal form before using them.
+--   Otherwise, attempts to do no normalization and presents the file as-is
+--   (stripping out comments and annotations)
 --   
 --   Default: <a>True</a>
 [dcoNormalize] :: DhallCompilerOptions a -> Bool
@@ -83,7 +85,9 @@ data DhallResolver :: Type -> Type
 --   Default: leave imports unchanged
 [DRRaw] :: {drRemap :: Import -> Compiler Import} -> DhallResolver Import
 
--- | Completely resolve all imports in IO
+-- | Completely resolve all imports in IO. All imports within Hakyll
+--   project are tracaked, and changes to dependencies will trigger
+--   rebuilds upstream.
 [DRFull] :: DhallResolver X
 
 -- | Helper typeclass to allow functions to be polymorphic over different
@@ -94,7 +98,7 @@ class DefaultDhallResolver a
 defaultDhallResolver :: DefaultDhallResolver a => DhallResolver a
 
 -- | Load a value of type <tt>a</tt> that is parsed from a Dhall file at
---   the given <a>Identifier</a>.
+--   the given <a>Identifier</a>. Tracks dependencies within project.
 loadDhall :: Type a -> Identifier -> Compiler (Item a)
 
 -- | Version of <a>loadDhall</a> taking custom <a>DhallCompilerOptions</a>.
