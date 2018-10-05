@@ -3,3 +3,5 @@ hakyll-dhall.cabal
 *~
 /_cache
 /_site
+/dist-newstyle
+/dist

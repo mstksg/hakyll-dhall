@@ -8,6 +8,23 @@
 {-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE TypeApplications    #-}
 
+-- |
+-- Module      : Hakyll.Web.Dhall
+-- Copyright   : (c) Justin Le 2018
+-- License     : BSD3
+--
+-- Maintainer  : justin@jle.im
+-- Stability   : experimental
+-- Portability : non-portable
+--
+-- Hakyll compiler and loader for Dhall files.  Functions are intended to
+-- track all local dependencies within the project directory, so rebuilds
+-- are properly triggered on up-stream imports.  Provides options for
+-- customizing rebuilding behavior for network, environment variable, and
+-- non-project local files.
+--
+
+
 module Hakyll.Web.Dhall (
   -- * Configuration and Options
     DhallCompilerOptions(..), DhallCompilerTrust(..)
@@ -172,8 +189,8 @@ data DhallResolver :: K.Type -> K.Type where
 -- inferrable, it can be helpful to use /TypeApplications/ syntax:
 --
 -- @
--- 'defaultCompilerOptions' @Import         -- do not resolve imports
--- 'defaultCompilerOptions' @X              -- resolve imports
+-- 'defaultCompilerOptions' \@Import         -- do not resolve imports
+-- 'defaultCompilerOptions' \@X              -- resolve imports
 -- @
 defaultDhallCompilerOptions
     :: DefaultDhallResolver a
