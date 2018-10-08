@@ -17,24 +17,13 @@
 --   non-project local files.
 module Hakyll.Web.Dhall
 
--- | Options for loading Dhall files
+-- | Options for loading Dhall files.
 data DhallCompilerOptions a
-DCO :: DhallResolver a -> Set DhallCompilerTrust -> Bool -> Bool -> DhallCompilerOptions a
+DCO :: DhallResolver a -> Bool -> Bool -> DhallCompilerOptions a
 
 -- | Method to resolve imports encountered in files. See documentation of
 --   <a>DhallResolver</a> for more details.
-[dcoResolver] :: DhallCompilerOptions a -> DhallResolver a
-
--- | Set of "trusted" import behaviors. Files with external references or
---   imports that aren't described in this set are always rebuilt every
---   time.
---   
---   Default: <tt><a>singleton</a> <a>DCTRemote</a></tt>
---   
---   That is, do not trust any dependencies on the local disk outside of
---   the project directory, but trust that any URL imports remain
---   unchanged.
-[dcoTrust] :: DhallCompilerOptions a -> Set DhallCompilerTrust
+[_dcoResolver] :: DhallCompilerOptions a -> DhallResolver a
 
 -- | Strictly for usage with <a>dhallCompiler</a> and family: should the
 --   result be "minimized" (all in one line) or pretty-printed for human
@@ -43,14 +32,14 @@ DCO :: DhallResolver a -> Set DhallCompilerTrust -> Bool -> Bool -> DhallCompile
 --   Can be useful for saving bandwidth.
 --   
 --   Default: <a>False</a>
-[dcoMinimize] :: DhallCompilerOptions a -> Bool
+[_dcoMinimize] :: DhallCompilerOptions a -> Bool
 
 -- | If <a>True</a>, reduce expressions to normal form before using them.
 --   Otherwise, attempts to do no normalization and presents the file as-is
 --   (stripping out comments and annotations)
 --   
 --   Default: <a>True</a>
-[dcoNormalize] :: DhallCompilerOptions a -> Bool
+[_dcoNormalize] :: DhallCompilerOptions a -> Bool
 
 -- | Types of external imports that a Dhall file may have.
 data DhallCompilerTrust
@@ -74,6 +63,15 @@ DCTEnv :: DhallCompilerTrust
 --   </pre>
 defaultDhallCompilerOptions :: DefaultDhallResolver a => DhallCompilerOptions a
 
+-- | Lens for <a>_dcoResolver</a> field of <a>DhallCompilerOptions</a>.
+dcoResolver :: Functor f => LensLike f (DhallCompilerOptions a) (DhallCompilerOptions b) (DhallResolver a) (DhallResolver b)
+
+-- | Lens for <a>_dcoMinimize</a> field of <a>DhallCompilerOptions</a>.
+dcoMinimize :: Functor f => LensLike' f (DhallCompilerOptions a) Bool
+
+-- | Lens for <a>_dcoNormalize</a> field of <a>DhallCompilerOptions</a>.
+dcoNormalize :: Functor f => LensLike' f (DhallCompilerOptions a) Bool
+
 -- | Method for resolving imports.
 --   
 --   The choice will determine the type of expression that
@@ -87,18 +85,12 @@ defaultDhallCompilerOptions :: DefaultDhallResolver a => DhallCompilerOptions a
 data DhallResolver :: Type -> Type
 
 -- | Leave imports as imports, but optionally remap the destinations.
---   
---   <b>Important:</b> <a>drRemap</a> is <i>not</i> applied recursively; it
---   is only applied once. Any imports in the resulting 'Expr Src Import'
---   are not re-expanded.
---   
---   Default: leave imports unchanged
-[DRRaw] :: {drRemap :: Import -> Compiler (Expr Src Import)} -> DhallResolver Import
+[DRRaw] :: {_drRemap :: Import -> Compiler (Expr Src Import)  Optionally remap the destinations.  __Important:__ '_drRemap' is /not/ applied recursively; it is only applied once.  Any imports in the resulting 'Expr Src Import' are not re-expanded.  Default: leave imports unchanged} -> DhallResolver Import
 
 -- | Completely resolve all imports in IO. All imports within Hakyll
 --   project are tracked, and changes to dependencies will trigger rebuilds
 --   upstream.
-[DRFull] :: DhallResolver X
+[DRFull] :: {_drTrust :: Set DhallCompilerTrust  Set of "trusted" import behaviors.  Files with external references or imports that aren't described in this set are always rebuilt every time.  Default: @'S.singleton' 'DCTRemote'@  That is, do not trust any dependencies on the local disk outside of the project directory, but trust that any URL imports remain unchanged.} -> DhallResolver X
 
 -- | Helper typeclass to allow functions to be polymorphic over different
 --   <a>DhallResolver</a> types.
@@ -106,6 +98,12 @@ data DhallResolver :: Type -> Type
 --   Provides default behavior for each resolver type.
 class DefaultDhallResolver a
 defaultDhallResolver :: DefaultDhallResolver a => DhallResolver a
+
+-- | Lens for <a>_drRemap</a> field of <a>DhallResolver</a>.
+drRemap :: Functor f => LensLike' f (DhallResolver Import) (Import -> Compiler (Expr Src Import))
+
+-- | Lens for <tt>_drFull</tt> field of <a>DhallResolver</a>.
+drFull :: Functor f => LensLike' f (DhallResolver X) (Set DhallCompilerTrust)
 
 -- | Load a value of type <tt>a</tt> that is parsed from a Dhall file at
 --   the given <a>Identifier</a>. Tracks dependencies within project.
