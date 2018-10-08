@@ -19,8 +19,10 @@
 --   <a>loadDhall</a> and <a>loadDhallExpr</a> allow for loading and
 --   parsing of Dhall files for usage within the <a>Compiler</a> monad, so
 --   you can use the results as intermediate parts in building your pages.
---   <a>dhallCompiler</a> is meant as a "final end-point", which just
---   pretty-prints a parsed Dhall file, with optional normalization.
+--   <a>parseDhall</a> allows directly passing in Dhall strings to parse
+--   and resolve, tracking imports. <a>dhallCompiler</a> is meant as a
+--   "final end-point", which just pretty-prints a parsed Dhall file, with
+--   optional normalization.
 module Hakyll.Web.Dhall
 
 -- | Options for loading Dhall files.
@@ -137,6 +139,24 @@ newtype DExpr a
 DExpr :: Expr Src a -> DExpr a
 [getDExpr] :: DExpr a -> Expr Src a
 
+-- | Parse a Dhall source. Meant to be useful for patterns similar to
+--   <tt>dhall-to-text</tt>. If using examples from
+--   <a>https://github.com/dhall-lang/dhall-text</a>, you can use:
+--   
+--   <pre>
+--   <a>parseDhall</a> <a>Nothing</a> ".<i>make-items .</i>people"
+--   </pre>
+--   
+--   Any local dependencies within the project directory (./make-items and
+--   ./people above, for example) are tracked by Hakyll, and so
+--   modifications to required files will also cause upstream files to be
+--   rebuilt.
+parseDhall :: DefaultDhallResolver a => Maybe Identifier -> Text -> Compiler (Expr Src a)
+
+-- | Version of <a>parseDhall</a> taking custom
+--   <a>DhallCompilerOptions</a>.
+parseDhallWith :: DhallCompilerOptions a -> Maybe Identifier -> Text -> Compiler (Expr Src a)
+
 -- | Essentially a Dhall pretty-printer, (optional) normalizer, and
 --   re-formatter. Compile the Dhall file as text according to default
 --   <a>DhallCompilerOptions</a>. Note that this is polymorphic over both
@@ -167,25 +187,18 @@ dhallFullCompiler :: Compiler (Item String)
 -- | <a>dhallCompiler</a>, but with custom <a>DhallCompilerOptions</a>.
 dhallCompilerWith :: Pretty a => DhallCompilerOptions a -> Compiler (Item String)
 
--- | Parse a Dhall source.
---   
---   This encapsulates the "magic" of tracking dependencies. Any local
---   dependencies within the project directory are tracked by Hakyll, and
---   so modifications to required files will also cause upstream files to
---   be rebuilt.
-parseDhallWith :: DhallCompilerOptions a -> Identifier -> Text -> Compiler (Item (Expr Src a))
-
 -- | Version of <a>parseDhallWith</a> that only acceps the <a>DRRaw</a>
 --   resolver, remapping the imports with the function in the <a>DRRaw</a>.
 --   Does not perform any normalization.
-parseRawDhallWith :: DhallCompilerOptions Import -> Identifier -> Text -> Compiler (Item (Expr Src Import))
+parseRawDhallWith :: DhallCompilerOptions Import -> Maybe Identifier -> Text -> Compiler (Expr Src Import)
 
 -- | Resolve all imports in a parsed Dhall expression.
 --   
---   Implemented so that any local dependencies within the project
---   directory are tracked by Hakyll, and so modifications to required
---   files will also cause upstream files to be rebuilt.
-resolveDhallImports :: DhallCompilerOptions X -> Identifier -> Expr Src Import -> Compiler (Expr Src X)
+--   This implements the "magic" of dependency tracking: implemented so
+--   that any local dependencies within the project directory are tracked
+--   by Hakyll, and so modifications to required files will also cause
+--   upstream files to be rebuilt.
+resolveDhallImports :: DhallCompilerOptions X -> Maybe Identifier -> Expr Src Import -> Compiler (Expr Src X)
 instance GHC.Generics.Generic (Hakyll.Web.Dhall.DhallCompilerOptions a)
 instance GHC.Classes.Ord Hakyll.Web.Dhall.DhallCompilerTrust
 instance GHC.Classes.Eq Hakyll.Web.Dhall.DhallCompilerTrust
