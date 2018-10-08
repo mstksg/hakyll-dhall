@@ -24,6 +24,11 @@
 -- customizing rebuilding behavior for network, environment variable, and
 -- non-project local files.
 --
+-- 'loadDhall' and 'loadDhallExpr' allow for loading and parsing of Dhall
+-- files for usage within the 'Compiler' monad, so you can use the results
+-- as intermediate parts in building your pages.  'dhallCompiler' is meant
+-- as a "final end-point", which just pretty-prints a parsed Dhall file,
+-- with optional normalization.
 
 
 module Hakyll.Web.Dhall (
@@ -147,22 +152,22 @@ data DhallCompilerTrust = DCTLocal
 -- | Options for loading Dhall files.
 data DhallCompilerOptions a = DCO
     { _dcoResolver :: DhallResolver a
-        -- ^ Method to resolve imports encountered in files.  See
-        -- documentation of 'DhallResolver' for more details.
+      -- ^ Method to resolve imports encountered in files.  See
+      -- documentation of 'DhallResolver' for more details.
     , _dcoMinimize :: Bool
-        -- ^ Strictly for usage with 'dhallCompiler' and family: should the
-        -- result be "minimized" (all in one line) or pretty-printed for
-        -- human readability?
-        --
-        -- Can be useful for saving bandwidth.
-        --
-        -- Default: 'False'
+      -- ^ Strictly for usage with 'dhallCompiler' and family: should the
+      -- result be "minimized" (all in one line) or pretty-printed for
+      -- human readability?
+      --
+      -- Can be useful for saving bandwidth.
+      --
+      -- Default: 'False'
     , _dcoNormalize :: Bool
-        -- ^ If 'True', reduce expressions to normal form before using
-        -- them.  Otherwise, attempts to do no normalization and presents
-        -- the file as-is (stripping out comments and annotations)
-        --
-        -- Default: 'True'
+      -- ^ If 'True', reduce expressions to normal form before using
+      -- them.  Otherwise, attempts to do no normalization and presents
+      -- the file as-is (stripping out comments and annotations)
+      --
+      -- Default: 'True'
     }
   deriving (Generic, Typeable)
 
@@ -272,9 +277,11 @@ instance DefaultDhallResolver a => Default (DhallCompilerOptions a) where
 -- TODO: other resolver functions
 -- TODO: maybe one day hakyll can track environment variables?
 
--- | Compile the Dhall file as text according to default
+-- | Essentially a Dhall pretty-printer, (optional) normalizer, and
+-- re-formatter.  Compile the Dhall file as text according to default
 -- 'DhallCompilerOptions'.  Note that this is polymorphic over both "raw"
--- and "fully resolved" versions; it must be called with /TypeApplications/
+-- and "fully resolved" versions; it must be called with
+-- /TypeApplications/.
 --
 -- @
 -- 'dhallRawCompiler'  = 'dhallCompiler' \@'Import'
@@ -293,13 +300,15 @@ dhallCompiler = dhallCompilerWith @a defaultDhallCompilerOptions
 
 -- | Compile the Dhall file as text according to default
 -- 'DhallCompilerOptions' while leaving all imports unchanged and
--- unresolved.
+-- unresolved.  Essentially a Dhall pretty-printer, (optional) normalizer,
+-- and re-formatter.
 dhallRawCompiler :: Compiler (Item String)
 dhallRawCompiler = dhallCompilerWith @Import defaultDhallCompilerOptions
 
 -- | Compile the Dhall file as text according to default
 -- 'DhallCompilerOptions', resolving all imports in IO and tracking
--- dependencies.
+-- dependencies.  Essentially a Dhall pretty-printer, (optional)
+-- normalizer, and re-formatter.
 dhallFullCompiler :: Compiler (Item String)
 dhallFullCompiler = dhallCompilerWith @X defaultDhallCompilerOptions
 
