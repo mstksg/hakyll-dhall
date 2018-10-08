@@ -100,7 +100,7 @@ before_install:
 - unset CC
 
 # We want to always allow newer versions of packages when building on GHC HEAD
-- CABALARGS="--constraint='hakyll -usepandoc'"
+- CABALARGS="--constraint=\"hakyll -usepandoc\""
 - if [ "x$GHCVER" = "xhead" ]; then CABALARGS="--allow-newer $CABALARGS"; fi
 
 # Download and unpack the stack executable
