@@ -12,4 +12,4 @@ main = hakyll $ do
 
     create ["testparse.txt"] $ do
       route idRoute
-      compile $ loadDhall (auto :: Type String) "test-dhall/parse-test.dhall"
+      compile $ parseDhall (auto :: Type String) Nothing "./test-dhall/parse-test.dhall"
