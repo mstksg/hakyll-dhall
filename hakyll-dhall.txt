@@ -15,6 +15,12 @@
 --   are properly triggered on up-stream imports. Provides options for
 --   customizing rebuilding behavior for network, environment variable, and
 --   non-project local files.
+--   
+--   <a>loadDhall</a> and <a>loadDhallExpr</a> allow for loading and
+--   parsing of Dhall files for usage within the <a>Compiler</a> monad, so
+--   you can use the results as intermediate parts in building your pages.
+--   <a>dhallCompiler</a> is meant as a "final end-point", which just
+--   pretty-prints a parsed Dhall file, with optional normalization.
 module Hakyll.Web.Dhall
 
 -- | Options for loading Dhall files.
@@ -131,10 +137,11 @@ newtype DExpr a
 DExpr :: Expr Src a -> DExpr a
 [getDExpr] :: DExpr a -> Expr Src a
 
--- | Compile the Dhall file as text according to default
+-- | Essentially a Dhall pretty-printer, (optional) normalizer, and
+--   re-formatter. Compile the Dhall file as text according to default
 --   <a>DhallCompilerOptions</a>. Note that this is polymorphic over both
 --   "raw" and "fully resolved" versions; it must be called with
---   <i>TypeApplications</i>
+--   <i>TypeApplications</i>.
 --   
 --   <pre>
 --   <a>dhallRawCompiler</a>  = <a>dhallCompiler</a> @<a>Import</a>
@@ -147,12 +154,14 @@ dhallCompiler :: forall a. (DefaultDhallResolver a, Pretty a) => Compiler (Item 
 
 -- | Compile the Dhall file as text according to default
 --   <a>DhallCompilerOptions</a> while leaving all imports unchanged and
---   unresolved.
+--   unresolved. Essentially a Dhall pretty-printer, (optional) normalizer,
+--   and re-formatter.
 dhallRawCompiler :: Compiler (Item String)
 
 -- | Compile the Dhall file as text according to default
 --   <a>DhallCompilerOptions</a>, resolving all imports in IO and tracking
---   dependencies.
+--   dependencies. Essentially a Dhall pretty-printer, (optional)
+--   normalizer, and re-formatter.
 dhallFullCompiler :: Compiler (Item String)
 
 -- | <a>dhallCompiler</a>, but with custom <a>DhallCompilerOptions</a>.
