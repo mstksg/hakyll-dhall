@@ -337,7 +337,7 @@ dhallCompilerWith dco = do
 -- perform any normalization.
 parseRawDhallWith
     :: DhallCompilerOptions Import
-    -> Maybe Identifier
+    -> Maybe Identifier             -- ^ Optional 'Identifier' used to specify directory root for imports
     -> T.Text
     -> Compiler (Expr Src Import)
 parseRawDhallWith DCO{..} i b =
