@@ -351,7 +351,7 @@ parseRawDhallWith DCO{..} i b =
 -- <https://github.com/dhall-lang/dhall-text>, you can use:
 --
 -- @
--- 'parseDhall' 'Nothing' "./make-items ./people"
+-- 'parseDhall' 'Nothing' ".\/make-items .\/people"
 -- @
 --
 -- Any local dependencies within the project directory (./make-items and
