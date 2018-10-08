@@ -144,7 +144,7 @@ DExpr :: Expr Src a -> DExpr a
 --   <a>https://github.com/dhall-lang/dhall-text</a>, you can use:
 --   
 --   <pre>
---   <a>parseDhall</a> <a>Nothing</a> ".<i>make-items .</i>people"
+--   <a>parseDhall</a> <a>Nothing</a> "./make-items ./people"
 --   </pre>
 --   
 --   Any local dependencies within the project directory (./make-items and
