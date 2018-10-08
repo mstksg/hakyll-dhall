@@ -38,7 +38,7 @@ library:
   - containers
   - data-default-class
   - filepath
-  - microlens
+  - lens-family-core
   - mtl
   - prettyprinter
   - text

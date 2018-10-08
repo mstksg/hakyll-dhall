@@ -29,9 +29,9 @@
 module Hakyll.Web.Dhall (
   -- * Configuration and Options
     DhallCompilerOptions(..), DhallCompilerTrust(..)
-  , defaultDhallCompilerOptions
+  , defaultDhallCompilerOptions, dcoResolver, dcoMinimize, dcoNormalize
   -- ** Resolver Behaviors
-  , DhallResolver(..), DefaultDhallResolver(..)
+  , DhallResolver(..), DefaultDhallResolver(..), drRemap, drFull
   -- * Load Dhall Files
   -- ** As as custom Haskell types
   , loadDhall, loadDhallWith
@@ -71,7 +71,7 @@ import           Hakyll.Core.Dependencies
 import           Hakyll.Core.Identifier
 import           Hakyll.Core.Item
 import           Hakyll.Core.Writable
-import           Lens.Micro
+import           Lens.Family                           (LensLike, LensLike', (.~), (&))
 import           System.FilePath
 import           System.IO
 import qualified Codec.CBOR.Read                       as CBOR
@@ -101,8 +101,8 @@ instance (DefaultDhallResolver a, PP.Pretty a) => Bi.Binary (DExpr a) where
         . getDExpr
       where
         toImport = case defaultDhallResolver @a of
-                     DRRaw _ -> id
-                     DRFull  -> absurd
+                     DRRaw  _ -> id
+                     DRFull _ -> absurd
     get = do
         bs     <- Bi.getRemainingLazyByteString
         (_, t) <- either (fail . show) pure $
@@ -112,8 +112,8 @@ instance (DefaultDhallResolver a, PP.Pretty a) => Bi.Binary (DExpr a) where
         DExpr <$> traverse fromImport e
       where
         fromImport i = case defaultDhallResolver @a of
-          DRRaw _ -> pure i
-          DRFull  -> fail $
+          DRRaw  _ -> pure i
+          DRFull _ -> fail $
             "Unexpected import in deserialization of `DExpr X`: "
               ++ T.unpack (iStr i)
         iStr = PP.renderStrict
@@ -144,22 +144,12 @@ data DhallCompilerTrust = DCTLocal
                             -- machine
   deriving (Generic, Typeable, Show, Eq, Ord)
 
--- | Options for loading Dhall files
+-- | Options for loading Dhall files.
 data DhallCompilerOptions a = DCO
-    { dcoResolver :: DhallResolver a
+    { _dcoResolver :: DhallResolver a
         -- ^ Method to resolve imports encountered in files.  See
         -- documentation of 'DhallResolver' for more details.
-    , dcoTrust :: S.Set DhallCompilerTrust
-        -- ^ Set of "trusted" import behaviors.  Files with external
-        -- references or imports that aren't described in this set are
-        -- always rebuilt every time.
-        --
-        -- Default: @'S.singleton' 'DCTRemote'@
-        --
-        -- That is, do not trust any dependencies on the local disk outside
-        -- of the project directory, but trust that any URL imports remain
-        -- unchanged.
-    , dcoMinimize :: Bool
+    , _dcoMinimize :: Bool
         -- ^ Strictly for usage with 'dhallCompiler' and family: should the
         -- result be "minimized" (all in one line) or pretty-printed for
         -- human readability?
@@ -167,7 +157,7 @@ data DhallCompilerOptions a = DCO
         -- Can be useful for saving bandwidth.
         --
         -- Default: 'False'
-    , dcoNormalize :: Bool
+    , _dcoNormalize :: Bool
         -- ^ If 'True', reduce expressions to normal form before using
         -- them.  Otherwise, attempts to do no normalization and presents
         -- the file as-is (stripping out comments and annotations)
@@ -175,6 +165,24 @@ data DhallCompilerOptions a = DCO
         -- Default: 'True'
     }
   deriving (Generic, Typeable)
+
+-- | Lens for '_dcoResolver' field of 'DhallCompilerOptions'.
+dcoResolver
+    :: Functor f
+    => LensLike f (DhallCompilerOptions a) (DhallCompilerOptions b) (DhallResolver a) (DhallResolver b)
+dcoResolver f (DCO r m n) = (\r' -> DCO r' m n) <$> f r
+
+-- | Lens for '_dcoMinimize' field of 'DhallCompilerOptions'.
+dcoMinimize
+    :: Functor f
+    => LensLike' f (DhallCompilerOptions a) Bool
+dcoMinimize f (DCO r m n) = (\m' -> DCO r m' n) <$> f m
+
+-- | Lens for '_dcoNormalize' field of 'DhallCompilerOptions'.
+dcoNormalize
+    :: Functor f
+    => LensLike' f (DhallCompilerOptions a) Bool
+dcoNormalize f (DCO r m n) = DCO r m <$> f n
 
 -- | Method for resolving imports.
 --
@@ -188,18 +196,41 @@ data DhallCompilerOptions a = DCO
 -- paths) and not others (remote network, local paths).
 data DhallResolver :: K.Type -> K.Type where
     -- | Leave imports as imports, but optionally remap the destinations.
-    --
-    -- __Important:__ 'drRemap' is /not/ applied recursively; it is only
-    -- applied once.  Any imports in the resulting 'Expr Src Import' are
-    -- not re-expanded.
-    --
-    -- Default: leave imports unchanged
-    DRRaw  :: { drRemap :: Import -> Compiler (Expr Src Import)
+    DRRaw  :: { _drRemap :: Import -> Compiler (Expr Src Import)
+                -- ^ Optionally remap the destinations.
+                --
+                -- __Important:__ '_drRemap' is /not/ applied recursively;
+                -- it is only applied once.  Any imports in the resulting
+                -- 'Expr Src Import' are not re-expanded.
+                --
+                -- Default: leave imports unchanged
               } -> DhallResolver Import
     -- | Completely resolve all imports in IO.  All imports within Hakyll
     -- project are tracked, and changes to dependencies will trigger
     -- rebuilds upstream.
-    DRFull :: DhallResolver X
+    DRFull :: { _drTrust :: S.Set DhallCompilerTrust
+                -- ^ Set of "trusted" import behaviors.  Files with
+                -- external references or imports that aren't described in
+                -- this set are always rebuilt every time.
+                --
+                -- Default: @'S.singleton' 'DCTRemote'@
+                --
+                -- That is, do not trust any dependencies on the local disk
+                -- outside of the project directory, but trust that any URL
+                -- imports remain unchanged.
+              } -> DhallResolver X
+
+-- | Lens for '_drRemap' field of 'DhallResolver'.
+drRemap
+    :: Functor f
+    => LensLike' f (DhallResolver Import) (Import -> Compiler (Expr Src Import))
+drRemap f (DRRaw r) = DRRaw <$> f r
+
+-- | Lens for '_drFull' field of 'DhallResolver'.
+drFull
+    :: Functor f
+    => LensLike' f (DhallResolver X) (S.Set DhallCompilerTrust)
+drFull f (DRFull t) = DRFull <$> f t
 
 -- | Default 'DhallCompilerOptions'.  If the type variable is not
 -- inferrable, it can be helpful to use /TypeApplications/ syntax:
@@ -212,10 +243,9 @@ defaultDhallCompilerOptions
     :: DefaultDhallResolver a
     => DhallCompilerOptions a
 defaultDhallCompilerOptions = DCO
-    { dcoResolver  = defaultDhallResolver
-    , dcoTrust     = S.singleton DCTRemote
-    , dcoMinimize  = False
-    , dcoNormalize = True
+    { _dcoResolver  = defaultDhallResolver
+    , _dcoMinimize  = False
+    , _dcoNormalize = True
     }
 
 -- | Helper typeclass to allow functions to be polymorphic over different
@@ -229,8 +259,11 @@ class DefaultDhallResolver a where
 instance DefaultDhallResolver Import where
     defaultDhallResolver = DRRaw $ pure . Embed
 
+-- | Only trust remote imports remain unchanged.  Rebuild every time if any
+-- absolute, home-directory-based, or environment variable imports are in
+-- file.
 instance DefaultDhallResolver X where
-    defaultDhallResolver = DRFull
+    defaultDhallResolver = DRFull $ S.singleton DCTRemote
 
 -- | @'def' = 'defaultDhallCompilerOptions'@
 instance DefaultDhallResolver a => Default (DhallCompilerOptions a) where
@@ -282,11 +315,11 @@ dhallCompilerWith dco = do
     makeItem $ T.unpack (disp e)
   where
     disp
-      | dcoMinimize dco = pretty
-      | otherwise       = PP.renderStrict
-                        . PP.layoutSmart layoutOpts
-                        . PP.unAnnotate
-                        . prettyExpr
+      | _dcoMinimize dco = pretty
+      | otherwise        = PP.renderStrict
+                         . PP.layoutSmart layoutOpts
+                         . PP.unAnnotate
+                         . prettyExpr
 
 -- | Version of 'parseDhallWith' that only acceps the 'DRRaw' resolver,
 -- remapping the imports with the function in the 'DRRaw'.  Does not
@@ -300,7 +333,7 @@ parseRawDhallWith DCO{..} i b =
     case exprFromText (toFilePath i) b of
       Left  e -> throwError . (:[]) $
         "Error parsing raw dhall file: " ++ show e
-      Right e -> makeItem . join =<< traverse (drRemap dcoResolver) e
+      Right e -> makeItem . join =<< traverse (_drRemap _dcoResolver) e
 
 -- | Parse a Dhall source.
 --
@@ -313,17 +346,17 @@ parseDhallWith
     -> Identifier
     -> T.Text
     -> Compiler (Item (Expr Src a))
-parseDhallWith dco i b = case dcoResolver dco of
-    DRRaw _ -> fmap norm <$> parseRawDhallWith dco i b
-    DRFull  -> (fmap . fmap) norm
-             . traverse (resolveDhallImports dco i)
-           =<< parseRawDhallWith (dco { dcoResolver = defaultDhallResolver })
-                 i b
+parseDhallWith dco i b = case _dcoResolver dco of
+    DRRaw  _ -> fmap norm <$> parseRawDhallWith dco i b
+    DRFull _ -> (fmap . fmap) norm
+              . traverse (resolveDhallImports dco i)
+            =<< parseRawDhallWith (dco { _dcoResolver = defaultDhallResolver })
+                  i b
   where
     norm :: Eq b => Expr s b -> Expr s b
     norm
-      | dcoNormalize dco = normalize
-      | otherwise        = id
+      | _dcoNormalize dco = normalize
+      | otherwise         = id
 
 -- | Resolve all imports in a parsed Dhall expression.
 --
@@ -347,6 +380,7 @@ resolveDhallImports DCO{..} ident e = do
     compilerTellDependencies $ mapMaybe mkDep imps
     pure res
   where
+    DRFull{..} = _dcoResolver
     mkDep :: Import -> Maybe Dependency
     mkDep i = case importType (importHashed i) of
       Local Here (File (Directory xs) x) -> Just
@@ -357,13 +391,13 @@ resolveDhallImports DCO{..} ident e = do
                                           . reverse
                                           $ x : xs
       Local _    _
-        | DCTLocal  `S.member` dcoTrust -> Nothing
+        | DCTLocal  `S.member` _drTrust -> Nothing
         | otherwise                     -> Just neverTrust
       Remote _
-        | DCTRemote `S.member` dcoTrust -> Nothing
+        | DCTRemote `S.member` _drTrust -> Nothing
         | otherwise                     -> Just neverTrust
       Env _
-        | DCTEnv    `S.member` dcoTrust -> Nothing
+        | DCTEnv    `S.member` _drTrust -> Nothing
         | otherwise                     -> Just neverTrust
       Missing                           -> Just neverTrust
     neverTrust = PatternDependency mempty mempty
