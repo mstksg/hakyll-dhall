@@ -7,7 +7,7 @@
 --   Please see the README on GitHub at
 --   <a>https://github.com/mstksg/hakyll-dhall#readme</a>
 @package hakyll-dhall
-@version 0.1.0.0
+@version 0.1.0.1
 
 
 -- | Hakyll compiler and loader for Dhall files. Functions are intended to
