@@ -11,9 +11,10 @@ non-project local files.
 
 `loadDhall` and `loadDhallExpr` allow for loading and parsing of Dhall files
 for usage within the 'Compiler' monad, so you can use the results as
-intermediate parts in building your pages.  `dhallCompiler` is meant as a
-"final end-point", which just pretty-prints a parsed Dhall file, with optional
-normalization.
+intermediate parts in building your pages.  `parseDhall` allows directly
+passing in Dhall strings to parse and resolve, tracking imports.
+`dhallCompiler` is meant as a "final end-point", which just pretty-prints a
+parsed Dhall file, with optional normalization.
 
 [hakyll-dhall]: http://hackage.haskell.org/package/hakyll-dhall
 [hakyll]: http://hackage.haskell.org/package/hakyll

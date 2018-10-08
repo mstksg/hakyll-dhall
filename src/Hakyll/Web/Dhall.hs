@@ -26,9 +26,10 @@
 --
 -- 'loadDhall' and 'loadDhallExpr' allow for loading and parsing of Dhall
 -- files for usage within the 'Compiler' monad, so you can use the results
--- as intermediate parts in building your pages.  'dhallCompiler' is meant
--- as a "final end-point", which just pretty-prints a parsed Dhall file,
--- with optional normalization.
+-- as intermediate parts in building your pages.  'parseDhall' allows
+-- directly passing in Dhall strings to parse and resolve, tracking
+-- imports.  'dhallCompiler' is meant as a "final end-point", which just
+-- pretty-prints a parsed Dhall file, with optional normalization.
 
 
 module Hakyll.Web.Dhall (
@@ -43,12 +44,13 @@ module Hakyll.Web.Dhall (
   -- ** As raw expressions
   , loadDhallExpr, loadDhallExprWith
   , DExpr(..)
-  -- * Compile Dhall Files
+  -- * Parse raw Dhall expressions
+  , parseDhall, parseDhallWith
+  -- * Compile (prettify, normalize, re-map) Dhall Files
   , dhallCompiler
   , dhallRawCompiler, dhallFullCompiler
   , dhallCompilerWith
   -- * Internal Utilities
-  , parseDhallWith
   , parseRawDhallWith
   , resolveDhallImports
   ) where
@@ -61,7 +63,7 @@ import           Data.Default.Class
 import           Data.IORef
 import           Data.Maybe
 import           Data.Typeable                         (Typeable)
-import           Dhall
+import           Dhall hiding                          (maybe)
 import           Dhall.Binary
 import           Dhall.Core
 import           Dhall.Diff
@@ -320,7 +322,7 @@ dhallCompilerWith
 dhallCompilerWith dco = do
     i <- getUnderlying
     b <- T.pack . itemBody <$> getResourceBody
-    e <- itemBody <$> parseDhallWith dco i b
+    e <- parseDhallWith dco (Just i) b
     makeItem $ T.unpack (disp e)
   where
     disp
@@ -335,30 +337,43 @@ dhallCompilerWith dco = do
 -- perform any normalization.
 parseRawDhallWith
     :: DhallCompilerOptions Import
-    -> Identifier
+    -> Maybe Identifier
     -> T.Text
-    -> Compiler (Item (Expr Src Import))
+    -> Compiler (Expr Src Import)
 parseRawDhallWith DCO{..} i b =
-    case exprFromText (toFilePath i) b of
+    case exprFromText (maybe "Raw dhall string" toFilePath i) b of
       Left  e -> throwError . (:[]) $
         "Error parsing raw dhall file: " ++ show e
-      Right e -> makeItem . join =<< traverse (_drRemap _dcoResolver) e
+      Right e -> join <$> traverse (_drRemap _dcoResolver) e
 
--- | Parse a Dhall source.
+-- | Parse a Dhall source.  Meant to be useful for patterns similar to
+-- @dhall-to-text@.  If using examples from
+-- <https://github.com/dhall-lang/dhall-text>, you can use:
 --
--- This encapsulates the "magic" of tracking dependencies.  Any local
--- dependencies within the project directory are tracked by Hakyll, and so
--- modifications to required files will also cause upstream files to be
--- rebuilt.
+-- @
+-- 'parseDhall' 'Nothing' "./make-items ./people"
+-- @
+--
+-- Any local dependencies within the project directory (./make-items and
+-- ./people above, for example) are tracked by Hakyll, and so modifications
+-- to required files will also cause upstream files to be rebuilt.
+parseDhall
+    :: DefaultDhallResolver a
+    => Maybe Identifier             -- ^ Optional 'Identifier' used to specify directory root for imports
+    -> T.Text
+    -> Compiler (Expr Src a)
+parseDhall = parseDhallWith defaultDhallCompilerOptions
+
+-- | Version of 'parseDhall' taking custom 'DhallCompilerOptions'.
 parseDhallWith
     :: DhallCompilerOptions a
-    -> Identifier
+    -> Maybe Identifier             -- ^ Optional 'Identifier' used to specify directory root for imports
     -> T.Text
-    -> Compiler (Item (Expr Src a))
+    -> Compiler (Expr Src a)
 parseDhallWith dco i b = case _dcoResolver dco of
-    DRRaw  _ -> fmap norm <$> parseRawDhallWith dco i b
-    DRFull _ -> (fmap . fmap) norm
-              . traverse (resolveDhallImports dco i)
+    DRRaw  _ -> norm <$> parseRawDhallWith dco i b
+    DRFull _ -> fmap norm
+              . resolveDhallImports dco i
             =<< parseRawDhallWith (dco { _dcoResolver = defaultDhallResolver })
                   i b
   where
@@ -369,19 +384,20 @@ parseDhallWith dco i b = case _dcoResolver dco of
 
 -- | Resolve all imports in a parsed Dhall expression.
 --
--- Implemented so that any local dependencies within the project directory
--- are tracked by Hakyll, and so modifications to required files will also
--- cause upstream files to be rebuilt.
+-- This implements the "magic" of dependency tracking: implemented so that
+-- any local dependencies within the project directory are tracked by
+-- Hakyll, and so modifications to required files will also cause upstream
+-- files to be rebuilt.
 resolveDhallImports
     :: DhallCompilerOptions X
-    -> Identifier
+    -> Maybe Identifier             -- ^ Optional 'Identifier' used to specify directory root for imports
     -> Expr Src Import
     -> Compiler (Expr Src X)
 resolveDhallImports DCO{..} ident e = do
     (res, imps) <- unsafeCompiler $ do
       iRef <- newIORef []
       res <- evalStateT (loadWith e) $
-        emptyStatus (takeDirectory (toFilePath ident))
+        emptyStatus (takeDirectory (maybe "./" toFilePath ident))
           & resolver .~ \i -> do
               liftIO $ modifyIORef iRef (i:)
               exprFromImport i
@@ -429,7 +445,7 @@ loadDhallExprWith
     -> Compiler (Item (Expr Src a))
 loadDhallExprWith dco i = do
     b <- T.pack <$> loadBody i
-    parseDhallWith dco i b
+    Item i <$> parseDhallWith dco (Just i) b
 
 -- | Load a value of type @a@ that is parsed from a Dhall file at the given
 -- 'Identifier'.  Tracks dependencies within project.
