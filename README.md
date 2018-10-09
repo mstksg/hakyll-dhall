@@ -9,19 +9,6 @@ rebuilds are properly triggered on up-stream imports.  Provides options for
 customizing rebuilding behavior for network, environment variable, and
 non-project local files.
 
-`loadDhall` and `loadDhallExpr` allow for loading and parsing of Dhall files
-for usage within the 'Compiler' monad, so you can use the results as
-intermediate parts in building your pages.  `parseDhall` allows directly
-passing in Dhall strings to parse and resolve, tracking imports.
-`dhallCompiler` is meant as a "final end-point", which just pretty-prints a
-parsed Dhall file, with optional normalization.
-
-Hakyll compiler and loader for Dhall files.  Functions are intended to
-track all local dependencies within the project directory, so rebuilds
-are properly triggered on up-stream imports.  Provides options for
-customizing rebuilding behavior for network, environment variable, and
-non-project local files.
-
 There are three major workflows:
 
 1. `dExprCompiler`, `loadDhall`, and `dhallCompiler`, for loading underlying
