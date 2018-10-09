@@ -70,11 +70,11 @@ DExpr :: Expr Src a -> DExpr a
 --   later. If you want to parse and immediately interpret, see
 --   <a>dhallCompiler</a>.
 --   
---   _Note_: If the <tt>a</tt> is not inferrable by type inference (like in
+--   _Note:_ If the <tt>a</tt> is not inferrable by type inference (like in
 --   the situation above), you can specify the <tt>a</tt> using type
 --   application syntax (like above).
 --   
---   _Note_: This isn't really meant to be a "final end-point", but if it
+--   _Note:_ This isn't really meant to be a "final end-point", but if it
 --   is used as such, a pretty-printed version will be rendered to the
 --   output directory, based on the <a>Writable</a> instance of
 --   <a>DExpr</a>.
