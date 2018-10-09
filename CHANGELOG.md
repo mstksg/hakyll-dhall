@@ -1,6 +1,15 @@
 Changelog
 =========
 
+Version 0.2.1.0
+---------------
+
+*October 8, 2018*
+
+<https://github.com/mstksg/backprop/releases/tag/v0.2.1.0>
+
+*   Swap argument order for `parseDhall` and `parseDhallWith`.
+
 Version 0.2.0.0
 ---------------
 

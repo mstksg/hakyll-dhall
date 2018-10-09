@@ -446,8 +446,8 @@ loadDhallSnapshot t i s = do
 --
 -- To directly obtain a Dhall expression, see 'parseDhallExpr'.
 parseDhall
-    :: Type a
-    -> Maybe FilePath                   -- ^ Override directory root
+    :: Maybe FilePath                   -- ^ Override directory root
+    -> Type a
     -> T.Text
     -> Compiler (Item a)
 parseDhall = parseDhallWith defaultDhallCompilerOptions
@@ -455,11 +455,11 @@ parseDhall = parseDhallWith defaultDhallCompilerOptions
 -- | Version of 'parseDhall' taking custom 'DhallCompilerOptions'.
 parseDhallWith
     :: DhallCompilerOptions X
-    -> Type a
     -> Maybe FilePath                   -- ^ Override directory root
+    -> Type a
     -> T.Text
     -> Compiler (Item a)
-parseDhallWith dco t fp b = do
+parseDhallWith dco fp t b = do
     e <- parseDhallExprWith dco fp b
     makeItem =<< interpretDhallCompiler t e
 
