@@ -382,11 +382,11 @@ dhallPrettyCompilerWith dco = do
 -- different types later.  If you want to parse and immediately interpret,
 -- see 'dhallCompiler'.
 --
--- _Note_: If the @a@ is not inferrable by type inference (like in the
+-- _Note:_ If the @a@ is not inferrable by type inference (like in the
 -- situation above), you can specify the @a@ using type application syntax
 -- (like above).
 --
--- _Note_: This isn't really meant to be a "final end-point", but if it is
+-- _Note:_ This isn't really meant to be a "final end-point", but if it is
 -- used as such, a pretty-printed version will be rendered to the output
 -- directory, based on the 'Writable' instance of 'DExpr'.
 dExprCompiler :: DefaultDhallResolver a => Compiler (Item (DExpr a))
