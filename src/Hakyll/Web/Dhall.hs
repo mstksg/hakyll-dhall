@@ -355,7 +355,9 @@ dhallPrettyCompilerWith dco = do
 -- expressions into the Hakyll cache, which you can later interpret and
 -- load  with 'loadDhall' or 'loadDhallSnapshot'.  A @'DExpr' a@ is an
 -- @'Expr' 'Src' a@, but wrapped so that it has a 'Bi.Binary' instance that
--- is usable by the Hakyll cache.
+-- is usable by the Hakyll cache.  Tracks all dependencies, so will trigger
+-- rebuilds of items that depend on it if any downstream dhall files are
+-- modified.
 --
 -- For example, here is a rule to parse and cache all Dhall files in the
 -- directory ./config:
@@ -374,19 +376,19 @@ dhallPrettyCompilerWith dco = do
 -- 'loadDhall' 'auto' "config/my_config.dhall"
 -- @
 --
--- Note that if the @a@ is not inferrable by type inference (like in the
--- situation above), you can specify the @a@ using type application syntax
--- (like above).
---
--- Note that this is mostly useful for routes that match many different
+-- This is mostly useful for routes that match many different
 -- files which will be interpreted as values of different types, or for
 -- caching a single expression that you might want to interpret as
 -- different types later.  If you want to parse and immediately interpret,
 -- see 'dhallCompiler'.
 --
--- Note also that this isn't really meant to be a "final end-point", but if
--- it is used as such, a pretty-printed version will be rendered to the
--- output directory, based on the 'Writable' instance of 'DExpr'.
+-- _Note_: If the @a@ is not inferrable by type inference (like in the
+-- situation above), you can specify the @a@ using type application syntax
+-- (like above).
+--
+-- _Note_: This isn't really meant to be a "final end-point", but if it is
+-- used as such, a pretty-printed version will be rendered to the output
+-- directory, based on the 'Writable' instance of 'DExpr'.
 dExprCompiler :: DefaultDhallResolver a => Compiler (Item (DExpr a))
 dExprCompiler = dExprCompilerWith defaultDhallCompilerOptions
 
@@ -421,6 +423,10 @@ dhallCompilerWith dco t = do
 --
 -- Expects item at identifier to be saved as @'DExpr' 'X'@ (possibly using
 -- @'dExprCompiler' \@'X'@)
+--
+-- Tracks dependencies properly, so any pages or routes that use the saved
+-- Dhall expression will re-build if any of the downstream Dhall files are
+-- edited.
 loadDhall
     :: Type a
     -> Identifier
@@ -435,6 +441,10 @@ loadDhall t i = do
 --
 -- Expects item at identifier to be saved as @'DExpr' 'X'@ (possibly using
 -- @'dExprCompiler' \@'X'@)
+--
+-- Tracks dependencies properly, so any pages or routes that use the saved
+-- Dhall expression will re-build if any of the downstream Dhall files are
+-- edited.
 loadDhallSnapshot
     :: Type a
     -> Identifier
