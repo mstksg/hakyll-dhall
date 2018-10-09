@@ -13,7 +13,8 @@
  expressions into the Hakyll cache, which you can later interpret and
  load  with <code><a href="Hakyll-Web-Dhall.html#v:loadDhall" title="Hakyll.Web.Dhall">loadDhall</a></code> or <code><a href="Hakyll-Web-Dhall.html#v:loadDhallSnapshot" title="Hakyll.Web.Dhall">loadDhallSnapshot</a></code>.  A <code><code><a href="Hakyll-Web-Dhall.html#t:DExpr" title="Hakyll.Web.Dhall">DExpr</a></code> a</code> is an
  <code><code><a href="../dhall-1.17.0/Dhall-Core.html#t:Expr" title="Dhall.Core">Expr</a></code> <code><a href="../dhall-1.17.0/Dhall-Parser.html#t:Src" title="Dhall.Parser">Src</a></code> a</code>, but wrapped so that it has a <code><a href="../binary-0.8.5.1/Data-Binary.html#t:Binary" title="Data.Binary">Binary</a></code> instance that
- is usable by the Hakyll cache.</p><p>For example, here is a rule to parse and cache all configuration files:</p><pre><code>match</code> &quot;config/**.dhall&quot; $ do
+ is usable by the Hakyll cache.</p><p>For example, here is a rule to parse and cache all Dhall files in the
+ directory ./config:</p><pre><code>match</code> &quot;config/**.dhall&quot; $ do
     <code>route</code> <code><a href="../base-4.11.1.0/Data-Monoid.html#v:mempty" title="Data.Monoid">mempty</a></code>
     <code>compile</code> $ <code><a href="Hakyll-Web-Dhall.html#v:dExprCompiler" title="Hakyll.Web.Dhall">dExprCompiler</a></code> @<code><a href="../dhall-1.17.0/Dhall-TypeCheck.html#t:X" title="Dhall.TypeCheck">X</a></code>
 </pre><p>This will save all of the dhall files in the directory ./config in the

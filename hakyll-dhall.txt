@@ -46,8 +46,8 @@ DExpr :: Expr Src a -> DExpr a
 --   wrapped so that it has a <a>Binary</a> instance that is usable by the
 --   Hakyll cache.
 --   
---   For example, here is a rule to parse and cache all configuration
---   files:
+--   For example, here is a rule to parse and cache all Dhall files in the
+--   directory ./config:
 --   
 --   <pre>
 --   <tt>match</tt> "config/**.dhall" $ do
