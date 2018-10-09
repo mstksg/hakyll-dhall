@@ -60,6 +60,7 @@ module Hakyll.Web.Dhall (
   -- ** Resolver Behaviors
   , DhallResolver(..), DefaultDhallResolver(..), drRemap, drFull
   -- * Internal Utilities
+  , interpretDhallCompiler
   , parseRawDhallExprWith
   , resolveDhallImports
   ) where

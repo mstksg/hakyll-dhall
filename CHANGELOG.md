@@ -1,5 +1,14 @@
-Changelog
+CHANGELOG
 =========
+
+Version 0.2.1.2
+---------------
+
+*October 9, 2018*
+
+<https://github.com/mstksg/backprop/releases/tag/v0.2.1.2>
+
+*   Export `interpretDhallCompiler`.
 
 Version 0.2.1.1
 ---------------
