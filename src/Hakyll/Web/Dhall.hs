@@ -362,12 +362,15 @@ dhallPrettyCompilerWith dco = do
 -- 'loadDhall' 'auto' "config/my_config.dhall"
 -- @
 --
+-- Note that if the @a@ is not inferrable by type inference (like in the
+-- situation above), you can specify the @a@ using type application syntax
+-- (like above).
+--
 -- Note that this is mostly useful for routes that match many different
 -- files which will be interpreted as values of different types, or for
 -- caching a single expression that you might want to interpret as
--- different types later.
---
--- If you want to parse and immediately interpret, see 'dhallCompiler'.
+-- different types later.  If you want to parse and immediately interpret,
+-- see 'dhallCompiler'.
 dExprCompiler :: DefaultDhallResolver a => Compiler (Item (DExpr a))
 dExprCompiler = dExprCompilerWith defaultDhallCompilerOptions
 
