@@ -24,13 +24,17 @@
 -- customizing rebuilding behavior for network, environment variable, and
 -- non-project local files.
 --
--- 'loadDhall' and 'loadDhallExpr' allow for loading and parsing of Dhall
--- files for usage within the 'Compiler' monad, so you can use the results
--- as intermediate parts in building your pages.  'parseDhallExpr' allows
--- directly passing in Dhall strings to parse and resolve, tracking
--- imports.  'dhallCompiler' is meant as a "final end-point", which just
--- pretty-prints a parsed Dhall file, with optional normalization.
-
+-- There are three major workflows:
+--
+--     1. 'dExprCompiler', 'loadDhall', and 'dhallCompiler', for loading
+--     underlying Dhall files, saving them into the Hakyll cache and later
+--     interpreting them as values.
+--
+--     2. 'parseDhall' and 'parseDhallExpr', for parsing Dhall expressions
+--     provided as strings, and resolving them while tracking dependencies.
+--
+--     3. 'dhallPrettyCompiler', for processing and re-formatting Dhall
+--     files and presenting them as-is as a "final end-point".
 
 module Hakyll.Web.Dhall (
   -- * Configuration and Options
@@ -38,20 +42,23 @@ module Hakyll.Web.Dhall (
   , defaultDhallCompilerOptions, dcoResolver, dcoMinimize, dcoNormalize
   -- ** Resolver Behaviors
   , DhallResolver(..), DefaultDhallResolver(..), drRemap, drFull
-  -- * Load Dhall Files
-  -- ** From Hakyll cache
+  -- * Import and Load Dhall Files
+  -- ** As Dhall expressions
   , DExpr(..)
   , dExprCompiler, dExprCompilerWith
+  -- *** From Hakyll cache
   , loadDhall, loadDhallSnapshot
+  -- ** As Haskell types
+  , dhallCompiler, dhallCompilerWith
   -- * Parse Dhall
   -- ** As Haskell types
   , parseDhall, parseDhallWith
   -- ** As Dhall Expressions
   , parseDhallExpr, parseDhallExprWith
   -- * Compile (prettify, normalize, re-map) Dhall text files
-  , dhallCompiler
-  , dhallRawCompiler, dhallFullCompiler
-  , dhallCompilerWith
+  , dhallPrettyCompiler
+  , dhallRawPrettyCompiler, dhallFullPrettyCompiler
+  , dhallPrettyCompilerWith
   -- * Internal Utilities
   , parseRawDhallExprWith
   , resolveDhallImports
@@ -65,11 +72,11 @@ import           Data.Default.Class
 import           Data.IORef
 import           Data.Maybe
 import           Data.Typeable                         (Typeable)
-import           Dhall hiding                          (maybe)
+import           Dhall
 import           Dhall.Binary
 import           Dhall.Core
 import           Dhall.Diff
-import           Dhall.Import hiding                   (load)
+import           Dhall.Import
 import           Dhall.Parser
 import           Dhall.Pretty
 import           Dhall.TypeCheck
@@ -142,15 +149,15 @@ instance PP.Pretty a => Writable (DExpr a) where
 
 -- | Types of external imports that a Dhall file may have.
 data DhallCompilerTrust = DCTLocal
-                            -- ^ File on local filesystem outside of
-                            -- project directory, and therefore not tracked
-                            -- by Hakyll
+                          -- ^ File on local filesystem outside of
+                          -- project directory, and therefore not tracked
+                          -- by Hakyll
                         | DCTRemote
-                            -- ^ Link to remote resource over a network
-                            -- connection
+                          -- ^ Link to remote resource over a network
+                          -- connection
                         | DCTEnv
-                            -- ^ Reference to environment variable on
-                            -- machine
+                          -- ^ Reference to environment variable on
+                          -- machine
   deriving (Generic, Typeable, Show, Eq, Ord)
 
 -- | Options for loading Dhall files.
@@ -159,8 +166,8 @@ data DhallCompilerOptions a = DCO
       -- ^ Method to resolve imports encountered in files.  See
       -- documentation of 'DhallResolver' for more details.
     , _dcoMinimize :: Bool
-      -- ^ Strictly for usage with 'dhallCompiler' and family: should the
-      -- result be "minimized" (all in one line) or pretty-printed for
+      -- ^ Strictly for usage with 'dhallPrettyCompiler' and family: should
+      -- the result be "minimized" (all in one line) or pretty-printed for
       -- human readability?
       --
       -- Can be useful for saving bandwidth.
@@ -288,16 +295,16 @@ instance DefaultDhallResolver a => Default (DhallCompilerOptions a) where
 -- /TypeApplications/.
 --
 -- @
--- 'dhallRawCompiler'  = 'dhallCompiler' \@'Import'
--- 'dhallFullCompiler' = 'dhallCompiler' \@'X'
+-- 'dhallRawPrettyCompiler'  = 'dhallPrettyCompiler' \@'Import'
+-- 'dhallFullPrettyCompiler' = 'dhallPrettyCompiler' \@'X'
 -- @
 --
 -- It might be more convenient to just use 'dhallRawCompiler' or
 -- 'dhallFullCompiler'.
-dhallCompiler
+dhallPrettyCompiler
     :: forall a. (DefaultDhallResolver a, PP.Pretty a)
     => Compiler (Item String)
-dhallCompiler = dhallCompilerWith @a defaultDhallCompilerOptions
+dhallPrettyCompiler = dhallPrettyCompilerWith @a defaultDhallCompilerOptions
 
 -- TODO: way to only resolve Env and Absolute and Home?
 -- Need to somehow hook into 'loadWith' so it can be recursive
@@ -306,22 +313,22 @@ dhallCompiler = dhallCompilerWith @a defaultDhallCompilerOptions
 -- 'DhallCompilerOptions' while leaving all imports unchanged and
 -- unresolved.  Essentially a Dhall pretty-printer, (optional) normalizer,
 -- and re-formatter.
-dhallRawCompiler :: Compiler (Item String)
-dhallRawCompiler = dhallCompilerWith @Import defaultDhallCompilerOptions
+dhallRawPrettyCompiler :: Compiler (Item String)
+dhallRawPrettyCompiler = dhallPrettyCompilerWith @Import defaultDhallCompilerOptions
 
 -- | Compile the Dhall file as text according to default
 -- 'DhallCompilerOptions', resolving all imports in IO and tracking
 -- dependencies.  Essentially a Dhall pretty-printer, (optional)
 -- normalizer, and re-formatter.
-dhallFullCompiler :: Compiler (Item String)
-dhallFullCompiler = dhallCompilerWith @X defaultDhallCompilerOptions
+dhallFullPrettyCompiler :: Compiler (Item String)
+dhallFullPrettyCompiler = dhallPrettyCompilerWith @X defaultDhallCompilerOptions
 
--- | 'dhallCompiler', but with custom 'DhallCompilerOptions'.
-dhallCompilerWith
+-- | 'dhallPrettyCompiler', but with custom 'DhallCompilerOptions'.
+dhallPrettyCompilerWith
     :: PP.Pretty a
     => DhallCompilerOptions a
     -> Compiler (Item String)
-dhallCompilerWith dco = do
+dhallPrettyCompilerWith dco = do
     DExpr e <- itemBody <$> dExprCompilerWith dco
     makeItem $ T.unpack (disp e)
   where
@@ -332,9 +339,39 @@ dhallCompilerWith dco = do
                          . PP.unAnnotate
                          . prettyExpr
 
+-- | Compile the underlying text file as a Dhall expression, wrapped in
+-- a 'DExpr' newtype.  Mostly useful for pre-cacheing fully resolved Dhall
+-- expressions into the Hakyll cache, which you can later interpret and
+-- load  with 'loadDhall' or 'loadDhallSnapshot'.  A @'DExpr' a@ is an
+-- @'Expr' 'Src' a@, but wrapped so that it has a 'Bi.Binary' instance that
+-- is usable by the Hakyll cache.
+--
+-- For example, here is a rule to parse and cache all configuration files:
+--
+-- @
+-- 'match' "config/**.dhall" $ do
+--     'route' 'mempty'
+--     'compile' $ 'dExprCompiler' \@'X'
+-- @
+--
+-- This will save all of the dhall files in the directory ./config in the
+-- Hakyll cache.  They can later be loaded and interpreted in the
+-- 'Compiler' monad using:
+--
+-- @
+-- 'loadDhall' 'auto' "config/my_config.dhall"
+-- @
+--
+-- Note that this is mostly useful for routes that match many different
+-- files which will be interpreted as values of different types, or for
+-- caching a single expression that you might want to interpret as
+-- different types later.
+--
+-- If you want to parse and immediately interpret, see 'dhallCompiler'.
 dExprCompiler :: DefaultDhallResolver a => Compiler (Item (DExpr a))
 dExprCompiler = dExprCompilerWith defaultDhallCompilerOptions
 
+-- | 'dExprCompiler', but with custom 'DhallCompilerOptions'.
 dExprCompilerWith
     :: DhallCompilerOptions a
     -> Compiler (Item (DExpr a))
@@ -343,7 +380,28 @@ dExprCompilerWith dco = do
     d <- takeDirectory . toFilePath <$> getUnderlying
     makeItem . DExpr =<< parseDhallExprWith dco (Just d) (T.pack b)
 
--- | Wrapper over 'loadBody' and 'interpretDhallCompiler'.
+-- | Parse the underlying text file as a Dhall expression and directly
+-- interpret it as a value of the given type.  Tracks all dependencies, so
+-- will trigger rebuilds based on downstream changes.
+dhallCompiler
+    :: Type a
+    -> Compiler (Item a)
+dhallCompiler = dhallCompilerWith defaultDhallCompilerOptions
+
+-- | 'dhallCompiler', but with custom 'DhallCompilerOptions'.
+dhallCompilerWith
+    :: DhallCompilerOptions X
+    -> Type a
+    -> Compiler (Item a)
+dhallCompilerWith dco t = do
+    DExpr e <- itemBody <$> dExprCompilerWith dco
+    makeItem =<< interpretDhallCompiler t e
+
+-- | Wrapper over 'load' and 'interpretDhallCompiler'.  Pulls up a 'DExpr'
+-- compiled or saved into the Hakyll cache and interprets it as a value.
+--
+-- Expects item at identifier to be saved as @'DExpr' 'X'@ (possibly using
+-- @'dExprCompiler' \@'X'@)
 loadDhall
     :: Type a
     -> Identifier
@@ -352,6 +410,12 @@ loadDhall t i = do
     DExpr e <- loadBody i
     makeItem =<< interpretDhallCompiler t e
 
+-- | Wrapper over 'loadSnapshot' and 'interpretDhallCompiler'.  Pulls up
+-- a 'DExpr' saved into the Hakyll cache as a snapshot and interprets it as
+-- a value.
+--
+-- Expects item at identifier to be saved as @'DExpr' 'X'@ (possibly using
+-- @'dExprCompiler' \@'X'@)
 loadDhallSnapshot
     :: Type a
     -> Identifier
@@ -442,24 +506,6 @@ parseDhallExprWith dco d b = case _dcoResolver dco of
       | _dcoNormalize dco = normalize
       | otherwise         = id
 
----- | Version of 'parseDhallExpr' taking custom 'DhallCompilerOptions'.
---parseDhallExprWith
---    :: DhallCompilerOptions a
---    -> Maybe Identifier             -- ^ Optional 'Identifier' used to specify directory root for imports
---    -> T.Text
---    -> Compiler (Expr Src a)
---parseDhallExprWith dco i b = case _dcoResolver dco of
---    DRRaw  _ -> norm <$> parseRawDhallWith dco i b
---    DRFull _ -> fmap norm
---              . resolveDhallImports dco i
---            =<< parseRawDhallWith (dco { _dcoResolver = defaultDhallResolver })
---                  i b
---  where
---    norm :: Eq b => Expr s b -> Expr s b
---    norm
---      | _dcoNormalize dco = normalize
---      | otherwise         = id
-
 -- | Version of 'parseDhallExprWith' that only acceps the 'DRRaw' resolver,
 -- remapping the imports with the function in the 'DRRaw'.  Does not
 -- perform any normalization.
@@ -472,24 +518,6 @@ parseRawDhallExprWith DCO{..} b =
       Left  e -> throwError . (:[]) $
         "Error parsing raw dhall file: " ++ show e
       Right e -> join <$> traverse (_drRemap _dcoResolver) e
-
----- | Version of 'parseDhallExpr' taking custom 'DhallCompilerOptions'.
---parseDhallExprWith
---    :: DhallCompilerOptions a
---    -> Maybe Identifier             -- ^ Optional 'Identifier' used to specify directory root for imports
---    -> T.Text
---    -> Compiler (Expr Src a)
---parseDhallExprWith dco i b = case _dcoResolver dco of
---    DRRaw  _ -> norm <$> parseRawDhallWith dco i b
---    DRFull _ -> fmap norm
---              . resolveDhallImports dco i
---            =<< parseRawDhallWith (dco { _dcoResolver = defaultDhallResolver })
---                  i b
---  where
---    norm :: Eq b => Expr s b -> Expr s b
---    norm
---      | _dcoNormalize dco = normalize
---      | otherwise         = id
 
 -- | Resolve all imports in a parsed Dhall expression.
 --
@@ -535,52 +563,3 @@ resolveDhallImports DCO{..} d e = do
         | otherwise                     -> Just neverTrust
       Missing                           -> Just neverTrust
     neverTrust = PatternDependency mempty mempty
-
----- | Load and parse the body of the given 'Identifier' as a Dhall
----- expression.
-----
----- If you wrap the result in 'DExpr', you can save the result as
----- a snapshot.
---loadDhallExpr
---    :: DefaultDhallResolver a
---    => Identifier
---    -> Compiler (Item (Expr Src a))
---loadDhallExpr = loadDhallExprWith defaultDhallCompilerOptions
-
----- | Version of 'loadDhallExpr' taking custom 'DhallCompilerOptions'.
---loadDhallExprWith
---    :: DhallCompilerOptions a
---    -> Identifier
---    -> Compiler (Item (Expr Src a))
---loadDhallExprWith dco i = do
---    b <- T.pack <$> loadBody i
---    Item i <$> parseDhallExprWith dco (Just i) b
-
----- | Load a value of type @a@ that is parsed from a Dhall file at the given
----- 'Identifier'.  Tracks dependencies within project.
---loadDhall
---    :: Type a
---    -> Identifier
---    -> Compiler (Item a)
---loadDhall = loadDhallWith defaultDhallCompilerOptions
-
----- | Version of 'loadDhall' taking custom 'DhallCompilerOptions'.
---loadDhallWith
---    :: DhallCompilerOptions X
---    -> Type a
---    -> Identifier
---    -> Compiler (Item a)
---loadDhallWith dco t ident = traverse (inp t)
---                        =<< loadDhallExprWith dco ident
---  where
---    inp :: Type a -> Expr Src X -> Compiler a
---    inp t' e = case rawInput t' e of
---      Nothing -> throwError . (terr:) . (:[]) $ case typeOf e of
---        Left err  -> show err
---        Right t0  -> T.unpack
---                   . PP.renderStrict
---                   . PP.layoutSmart layoutOpts
---                   . diffNormalized (expected t)
---                   $ t0
---      Just x  -> pure x
---    terr = "Error interpreting Dhall expression as desired type."
