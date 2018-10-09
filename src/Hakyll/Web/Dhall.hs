@@ -371,6 +371,10 @@ dhallPrettyCompilerWith dco = do
 -- caching a single expression that you might want to interpret as
 -- different types later.  If you want to parse and immediately interpret,
 -- see 'dhallCompiler'.
+--
+-- Note also that this isn't really meant to be a "final end-point", but if
+-- it is used as such, a pretty-printed version will be rendered to the
+-- output directory, based on the 'Writable' instance of 'DExpr'.
 dExprCompiler :: DefaultDhallResolver a => Compiler (Item (DExpr a))
 dExprCompiler = dExprCompilerWith defaultDhallCompilerOptions
 
