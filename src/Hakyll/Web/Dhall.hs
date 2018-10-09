@@ -37,14 +37,9 @@
 --     files and presenting them as-is as a "final end-point".
 
 module Hakyll.Web.Dhall (
-  -- * Configuration and Options
-    DhallCompilerOptions(..), DhallCompilerTrust(..)
-  , defaultDhallCompilerOptions, dcoResolver, dcoMinimize, dcoNormalize
-  -- ** Resolver Behaviors
-  , DhallResolver(..), DefaultDhallResolver(..), drRemap, drFull
   -- * Import and Load Dhall Files
   -- ** As Dhall expressions
-  , DExpr(..)
+    DExpr(..)
   , dExprCompiler, dExprCompilerWith
   -- *** From Hakyll cache
   , loadDhall, loadDhallSnapshot
@@ -59,6 +54,11 @@ module Hakyll.Web.Dhall (
   , dhallPrettyCompiler
   , dhallRawPrettyCompiler, dhallFullPrettyCompiler
   , dhallPrettyCompilerWith
+  -- * Configuration and Options
+  , DhallCompilerOptions(..), DhallCompilerTrust(..)
+  , defaultDhallCompilerOptions, dcoResolver, dcoMinimize, dcoNormalize
+  -- ** Resolver Behaviors
+  , DhallResolver(..), DefaultDhallResolver(..), drRemap, drFull
   -- * Internal Utilities
   , parseRawDhallExprWith
   , resolveDhallImports
@@ -252,8 +252,18 @@ drFull f (DRFull t) = DRFull <$> f t
 -- inferrable, it can be helpful to use /TypeApplications/ syntax:
 --
 -- @
--- 'defaultCompilerOptions' \@'Import'         -- do not resolve imports
--- 'defaultCompilerOptions' \@'X'              -- resolve imports
+-- 'defaultDhallCompilerOptions' \@'Import'     -- do not resolve imports
+-- 'defaultDhallCompilerOptions' \@'X'          -- resolve imports
+-- @
+--
+-- Default values are:
+--
+-- @
+-- 'DCO'
+--   { '_dcoResolver'  = 'defaultDhallResolver'
+--   , '_dcoMinimize'  = 'False'
+--   , '_dcoNormalize' = 'True'
+--   }
 -- @
 defaultDhallCompilerOptions
     :: DefaultDhallResolver a
@@ -346,7 +356,8 @@ dhallPrettyCompilerWith dco = do
 -- @'Expr' 'Src' a@, but wrapped so that it has a 'Bi.Binary' instance that
 -- is usable by the Hakyll cache.
 --
--- For example, here is a rule to parse and cache all configuration files:
+-- For example, here is a rule to parse and cache all Dhall files in the
+-- directory ./config:
 --
 -- @
 -- 'match' "config/**.dhall" $ do
