@@ -7,7 +7,7 @@
 --   Please see the README on GitHub at
 --   <a>https://github.com/mstksg/hakyll-dhall#readme</a>
 @package hakyll-dhall
-@version 0.2.0.0
+@version 0.2.1.0
 
 
 -- | Hakyll compiler and loader for Dhall files. Functions are intended to
@@ -160,6 +160,11 @@ DExpr :: Expr Src a -> DExpr a
 --   caching a single expression that you might want to interpret as
 --   different types later. If you want to parse and immediately interpret,
 --   see <a>dhallCompiler</a>.
+--   
+--   Note also that this isn't really meant to be a "final end-point", but
+--   if it is used as such, a pretty-printed version will be rendered to
+--   the output directory, based on the <a>Writable</a> instance of
+--   <a>DExpr</a>.
 dExprCompiler :: DefaultDhallResolver a => Compiler (Item (DExpr a))
 
 -- | <a>dExprCompiler</a>, but with custom <a>DhallCompilerOptions</a>.
@@ -203,11 +208,11 @@ dhallCompilerWith :: DhallCompilerOptions X -> Type a -> Compiler (Item a)
 --   rebuilt.
 --   
 --   To directly obtain a Dhall expression, see <a>parseDhallExpr</a>.
-parseDhall :: Type a -> Maybe FilePath -> Text -> Compiler (Item a)
+parseDhall :: Maybe FilePath -> Type a -> Text -> Compiler (Item a)
 
 -- | Version of <a>parseDhall</a> taking custom
 --   <a>DhallCompilerOptions</a>.
-parseDhallWith :: DhallCompilerOptions X -> Type a -> Maybe FilePath -> Text -> Compiler (Item a)
+parseDhallWith :: DhallCompilerOptions X -> Maybe FilePath -> Type a -> Text -> Compiler (Item a)
 
 -- | Version of <a>parseDhall</a> that directly returns a Dhall expression,
 --   instead of trying to interpret it into a custom Haskell type.
