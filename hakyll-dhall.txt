@@ -7,7 +7,7 @@
 --   Please see the README on GitHub at
 --   <a>https://github.com/mstksg/hakyll-dhall#readme</a>
 @package hakyll-dhall
-@version 0.2.1.1
+@version 0.2.1.2
 
 
 -- | Hakyll compiler and loader for Dhall files. Functions are intended to
@@ -267,6 +267,11 @@ drRemap :: Functor f => LensLike' f (DhallResolver Import) (Import -> Compiler (
 
 -- | Lens for <tt>_drFull</tt> field of <a>DhallResolver</a>.
 drFull :: Functor f => LensLike' f (DhallResolver X) (Set DhallCompilerTrust)
+
+-- | Interpret a fully resolved Dhall expression as a value of a type,
+--   given a <a>Type</a>. Run in <a>Compiler</a> to integrate error
+--   handling with Hakyll.
+interpretDhallCompiler :: Type a -> Expr Src X -> Compiler a
 
 -- | Version of <a>parseDhallExprWith</a> that only acceps the <a>DRRaw</a>
 --   resolver, remapping the imports with the function in the <a>DRRaw</a>.
