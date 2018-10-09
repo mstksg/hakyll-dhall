@@ -44,7 +44,8 @@ DExpr :: Expr Src a -> DExpr a
 --   and load with <a>loadDhall</a> or <a>loadDhallSnapshot</a>. A
 --   <tt><a>DExpr</a> a</tt> is an <tt><a>Expr</a> <a>Src</a> a</tt>, but
 --   wrapped so that it has a <a>Binary</a> instance that is usable by the
---   Hakyll cache.
+--   Hakyll cache. Tracks all dependencies, so will trigger rebuilds of
+--   items that depend on it if any downstream dhall files are modified.
 --   
 --   For example, here is a rule to parse and cache all Dhall files in the
 --   directory ./config:
@@ -63,19 +64,19 @@ DExpr :: Expr Src a -> DExpr a
 --   <a>loadDhall</a> <a>auto</a> "config/my_config.dhall"
 --   </pre>
 --   
---   Note that if the <tt>a</tt> is not inferrable by type inference (like
---   in the situation above), you can specify the <tt>a</tt> using type
+--   This is mostly useful for routes that match many different files which
+--   will be interpreted as values of different types, or for caching a
+--   single expression that you might want to interpret as different types
+--   later. If you want to parse and immediately interpret, see
+--   <a>dhallCompiler</a>.
+--   
+--   _Note_: If the <tt>a</tt> is not inferrable by type inference (like in
+--   the situation above), you can specify the <tt>a</tt> using type
 --   application syntax (like above).
 --   
---   Note that this is mostly useful for routes that match many different
---   files which will be interpreted as values of different types, or for
---   caching a single expression that you might want to interpret as
---   different types later. If you want to parse and immediately interpret,
---   see <a>dhallCompiler</a>.
---   
---   Note also that this isn't really meant to be a "final end-point", but
---   if it is used as such, a pretty-printed version will be rendered to
---   the output directory, based on the <a>Writable</a> instance of
+--   _Note_: This isn't really meant to be a "final end-point", but if it
+--   is used as such, a pretty-printed version will be rendered to the
+--   output directory, based on the <a>Writable</a> instance of
 --   <a>DExpr</a>.
 dExprCompiler :: DefaultDhallResolver a => Compiler (Item (DExpr a))
 
@@ -88,6 +89,10 @@ dExprCompilerWith :: DhallCompilerOptions a -> Compiler (Item (DExpr a))
 --   
 --   Expects item at identifier to be saved as <tt><a>DExpr</a>
 --   <a>X</a></tt> (possibly using <tt><a>dExprCompiler</a> @<a>X</a></tt>)
+--   
+--   Tracks dependencies properly, so any pages or routes that use the
+--   saved Dhall expression will re-build if any of the downstream Dhall
+--   files are edited.
 loadDhall :: Type a -> Identifier -> Compiler (Item a)
 
 -- | Wrapper over <a>loadSnapshot</a> and <a>interpretDhallCompiler</a>.
@@ -96,6 +101,10 @@ loadDhall :: Type a -> Identifier -> Compiler (Item a)
 --   
 --   Expects item at identifier to be saved as <tt><a>DExpr</a>
 --   <a>X</a></tt> (possibly using <tt><a>dExprCompiler</a> @<a>X</a></tt>)
+--   
+--   Tracks dependencies properly, so any pages or routes that use the
+--   saved Dhall expression will re-build if any of the downstream Dhall
+--   files are edited.
 loadDhallSnapshot :: Type a -> Identifier -> Snapshot -> Compiler (Item a)
 
 -- | Parse the underlying text file as a Dhall expression and directly
