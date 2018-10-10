@@ -1,7 +1,17 @@
 CHANGELOG
 =========
 
-Version 0.2.1.0
+Version 0.2.2.0
+---------------
+
+*October 9, 2018*
+
+<https://github.com/mstksg/backprop/releases/tag/v0.2.2.0>
+
+*   Add `renderDhallExprWith`, to separate out functionality from
+    `dhallPrettyCompilerWith`.
+
+Version 0.2.1.X
 ---------------
 
 *October 8, 2018*

@@ -1,9 +1,11 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE ConstraintKinds     #-}
 {-# LANGUAGE DeriveDataTypeable  #-}
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections       #-}
@@ -54,6 +56,7 @@ module Hakyll.Web.Dhall (
   , dhallPrettyCompiler
   , dhallRawPrettyCompiler, dhallFullPrettyCompiler
   , dhallPrettyCompilerWith
+  , renderDhallExprWith
   -- * Configuration and Options
   , DhallCompilerOptions(..), DhallCompilerTrust(..)
   , defaultDhallCompilerOptions, dcoResolver, dcoMinimize, dcoNormalize
@@ -137,7 +140,8 @@ instance (DefaultDhallResolver a, PP.Pretty a) => Bi.Binary (DExpr a) where
              . PP.layoutSmart layoutOpts
              . PP.pretty @Import
 
--- | Automatically "pretty prints" in multi-line form
+-- | Automatically "pretty prints" in multi-line form.  For more
+-- fine-grained results, see 'dhallPrettyCompilerWith' and family.
 instance PP.Pretty a => Writable (DExpr a) where
     write fp e = withFile fp WriteMode $ \h ->
       PP.renderIO h
@@ -313,7 +317,7 @@ instance DefaultDhallResolver a => Default (DhallCompilerOptions a) where
 -- It might be more convenient to just use 'dhallRawCompiler' or
 -- 'dhallFullCompiler'.
 dhallPrettyCompiler
-    :: forall a. (DefaultDhallResolver a, PP.Pretty a)
+    :: forall a. DefaultDhallResolver a
     => Compiler (Item String)
 dhallPrettyCompiler = dhallPrettyCompilerWith @a defaultDhallCompilerOptions
 
@@ -336,19 +340,33 @@ dhallFullPrettyCompiler = dhallPrettyCompilerWith @X defaultDhallCompilerOptions
 
 -- | 'dhallPrettyCompiler', but with custom 'DhallCompilerOptions'.
 dhallPrettyCompilerWith
-    :: PP.Pretty a
-    => DhallCompilerOptions a
+    :: DhallCompilerOptions a
     -> Compiler (Item String)
 dhallPrettyCompilerWith dco = do
     DExpr e <- itemBody <$> dExprCompilerWith dco
-    makeItem $ T.unpack (disp e)
+    makeItem . T.unpack $ renderDhallExprWith dco e
+
+-- | Format and pretty-print an 'Expr' according to options in a given
+-- 'DhallCompilerOptions'.
+renderDhallExprWith
+    :: DhallCompilerOptions a
+    -> Expr Src a
+    -> T.Text
+renderDhallExprWith DCO{..} = case _dcoResolver of
+    DRRaw  _ -> go
+    DRFull _ -> go
   where
-    disp
-      | _dcoMinimize dco = pretty
-      | otherwise        = PP.renderStrict
-                         . PP.layoutSmart layoutOpts
-                         . PP.unAnnotate
-                         . prettyExpr
+    go :: (PP.Pretty a, Eq a) => Expr Src a -> T.Text
+    go  | _dcoMinimize = pretty . norm
+        | otherwise    = PP.renderStrict
+                       . PP.layoutSmart layoutOpts
+                       . PP.unAnnotate
+                       . prettyExpr
+                       . norm
+     where
+       norm
+         | _dcoNormalize = normalize
+         | otherwise     = id
 
 -- | Compile the underlying text file as a Dhall expression, wrapped in
 -- a 'DExpr' newtype.  Mostly useful for pre-cacheing fully resolved Dhall

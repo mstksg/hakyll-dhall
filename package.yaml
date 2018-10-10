@@ -1,5 +1,5 @@
 name:                hakyll-dhall
-version:             0.2.1.3
+version:             0.2.2.0
 github:              "mstksg/hakyll-dhall"
 license:             BSD3
 author:              "Justin Le"
