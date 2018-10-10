@@ -7,7 +7,7 @@
 --   Please see the README on GitHub at
 --   <a>https://github.com/mstksg/hakyll-dhall#readme</a>
 @package hakyll-dhall
-@version 0.2.1.3
+@version 0.2.2.0
 
 
 -- | Hakyll compiler and loader for Dhall files. Functions are intended to
@@ -161,7 +161,7 @@ parseDhallExprWith :: DhallCompilerOptions a -> Maybe FilePath -> Text -> Compil
 --   
 --   It might be more convenient to just use <tt>dhallRawCompiler</tt> or
 --   <tt>dhallFullCompiler</tt>.
-dhallPrettyCompiler :: forall a. (DefaultDhallResolver a, Pretty a) => Compiler (Item String)
+dhallPrettyCompiler :: forall a. DefaultDhallResolver a => Compiler (Item String)
 
 -- | Compile the Dhall file as text according to default
 --   <a>DhallCompilerOptions</a> while leaving all imports unchanged and
@@ -177,7 +177,11 @@ dhallFullPrettyCompiler :: Compiler (Item String)
 
 -- | <a>dhallPrettyCompiler</a>, but with custom
 --   <a>DhallCompilerOptions</a>.
-dhallPrettyCompilerWith :: Pretty a => DhallCompilerOptions a -> Compiler (Item String)
+dhallPrettyCompilerWith :: DhallCompilerOptions a -> Compiler (Item String)
+
+-- | Format and pretty-print an <a>Expr</a> according to options in a given
+--   <a>DhallCompilerOptions</a>.
+renderDhallExprWith :: DhallCompilerOptions a -> Expr Src a -> Text
 
 -- | Options for loading Dhall files.
 data DhallCompilerOptions a
