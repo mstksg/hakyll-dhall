@@ -4,8 +4,13 @@
 
 -- | Dhall compiler for Hakyll
 --   
---   Please see the README on GitHub at
---   <a>https://github.com/mstksg/hakyll-dhall#readme</a>
+--   Hakyll compiler and loader for Dhall files. Functions are intended to
+--   track all local dependencies within the project directory, so rebuilds
+--   are properly triggered on up-stream imports. Provides options for
+--   customizing rebuilding behavior for network, environment variable, and
+--   non-project local files.
+--   
+--   See README.md for more information.
 @package hakyll-dhall
 @version 0.2.2.0
 
