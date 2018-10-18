@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE CPP                 #-}
 {-# LANGUAGE ConstraintKinds     #-}
 {-# LANGUAGE DeriveDataTypeable  #-}
 {-# LANGUAGE DeriveGeneric       #-}
@@ -116,7 +117,11 @@ instance (DefaultDhallResolver a, PP.Pretty a) => Bi.Binary (DExpr a) where
     put = Bi.putBuilder
         . CBOR.toBuilder
         . CBOR.encodeTerm
+#if MIN_VERSION_dhall(1,18,0)
+        . encodeWithVersion V_3_0_0
+#else
         . encode V_1_0
+#endif
         . fmap toImport
         . getDExpr
       where
@@ -128,7 +133,11 @@ instance (DefaultDhallResolver a, PP.Pretty a) => Bi.Binary (DExpr a) where
         (_, t) <- either (fail . show) pure $
                     CBOR.deserialiseFromBytes CBOR.decodeTerm bs
         e      <- either (fail . show) pure $
+#if MIN_VERSION_dhall(1,18,0)
+                    decodeWithVersion t
+#else
                     decode t
+#endif
         DExpr <$> traverse fromImport e
       where
         fromImport i = case defaultDhallResolver @a of

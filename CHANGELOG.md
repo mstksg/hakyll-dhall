@@ -1,6 +1,15 @@
 CHANGELOG
 =========
 
+Version 0.2.2.1
+---------------
+
+*October 17, 2018*
+
+<https://github.com/mstksg/backprop/releases/tag/v0.2.2.1>
+
+*   Compatibility with *dhall-1.18*.
+
 Version 0.2.2.0
 ---------------
 
