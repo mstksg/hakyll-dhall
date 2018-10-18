@@ -12,7 +12,7 @@
 --   
 --   See README.md for more information.
 @package hakyll-dhall
-@version 0.2.2.0
+@version 0.2.2.1
 
 
 -- | Hakyll compiler and loader for Dhall files. Functions are intended to
