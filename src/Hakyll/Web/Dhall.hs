@@ -118,7 +118,7 @@ instance (DefaultDhallResolver a, PP.Pretty a) => Bi.Binary (DExpr a) where
         . CBOR.toBuilder
         . CBOR.encodeTerm
 #if MIN_VERSION_dhall(1,18,0)
-        . encodeWithVersion V_3_0_0
+        . encodeWithVersion defaultStandardVersion
 #else
         . encode V_1_0
 #endif
