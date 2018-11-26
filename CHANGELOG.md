@@ -1,6 +1,15 @@
 CHANGELOG
 =========
 
+Version 0.2.2.2
+---------------
+
+*November 25, 2018*
+
+<https://github.com/mstksg/hakyll-dhall/releases/tag/v0.2.2.2>
+
+*   Compatibility with *dhall-1.19*.
+
 Version 0.2.2.1
 ---------------
 
