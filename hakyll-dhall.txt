@@ -12,7 +12,7 @@
 --   
 --   See README.md for more information.
 @package hakyll-dhall
-@version 0.2.2.2
+@version 0.2.3.0
 
 
 -- | Hakyll compiler and loader for Dhall files. Functions are intended to
@@ -266,12 +266,12 @@ dcoNormalize :: Functor f => LensLike' f (DhallCompilerOptions a) Bool
 data DhallResolver :: Type -> Type
 
 -- | Leave imports as imports, but optionally remap the destinations.
-[DRRaw] :: {_drRemap :: Import -> Compiler (Expr Src Import)  Optionally remap the destinations.  __Important:__ '_drRemap' is /not/ applied recursively; it is only applied once.  Any imports in the resulting 'Expr Src Import' are not re-expanded.  Default: leave imports unchanged} -> DhallResolver Import
+[DRRaw] :: {_drRemap :: Import -> Compiler (Expr Src Import) " Optionally remap the destinations.  __Important:__ '_drRemap' is /not/ applied recursively; it is only applied once.  Any imports in the resulting 'Expr Src Import' are not re-expanded.  Default: leave imports unchanged"} -> DhallResolver Import
 
 -- | Completely resolve all imports in IO. All imports within Hakyll
 --   project are tracked, and changes to dependencies will trigger rebuilds
 --   upstream.
-[DRFull] :: {_drTrust :: Set DhallCompilerTrust  Set of "trusted" import behaviors.  Files with external references or imports that aren't described in this set are always rebuilt every time.  Default: @'S.singleton' 'DCTRemote'@  That is, do not trust any dependencies on the local disk outside of the project directory, but trust that any URL imports remain unchanged.} -> DhallResolver X
+[DRFull] :: {_drTrust :: Set DhallCompilerTrust " Set of "trusted" import behaviors.  Files with external references or imports that aren't described in this set are always rebuilt every time.  Default: @'S.singleton' 'DCTRemote'@  That is, do not trust any dependencies on the local disk outside of the project directory, but trust that any URL imports remain unchanged."} -> DhallResolver X
 
 -- | Helper typeclass to allow functions to be polymorphic over different
 --   <a>DhallResolver</a> types.
@@ -287,7 +287,7 @@ drRemap :: Functor f => LensLike' f (DhallResolver Import) (Import -> Compiler (
 drFull :: Functor f => LensLike' f (DhallResolver X) (Set DhallCompilerTrust)
 
 -- | Interpret a fully resolved Dhall expression as a value of a type,
---   given a <a>Type</a>. Run in <a>Compiler</a> to integrate error
+--   given a <a>Const</a>. Run in <a>Compiler</a> to integrate error
 --   handling with Hakyll.
 interpretDhallCompiler :: Type a -> Expr Src X -> Compiler a
 
@@ -309,8 +309,8 @@ instance GHC.Classes.Eq Hakyll.Web.Dhall.DhallCompilerTrust
 instance GHC.Show.Show Hakyll.Web.Dhall.DhallCompilerTrust
 instance GHC.Generics.Generic Hakyll.Web.Dhall.DhallCompilerTrust
 instance GHC.Generics.Generic (Hakyll.Web.Dhall.DExpr a)
-instance (Hakyll.Web.Dhall.DefaultDhallResolver a, Data.Text.Prettyprint.Doc.Internal.Pretty a) => Data.Binary.Class.Binary (Hakyll.Web.Dhall.DExpr a)
 instance Hakyll.Web.Dhall.DefaultDhallResolver Dhall.Core.Import
 instance Hakyll.Web.Dhall.DefaultDhallResolver Dhall.TypeCheck.X
 instance Hakyll.Web.Dhall.DefaultDhallResolver a => Data.Default.Class.Default (Hakyll.Web.Dhall.DhallCompilerOptions a)
+instance (Data.Text.Prettyprint.Doc.Internal.Pretty a, Dhall.Binary.ToTerm a, Dhall.Binary.FromTerm a) => Data.Binary.Class.Binary (Hakyll.Web.Dhall.DExpr a)
 instance Data.Text.Prettyprint.Doc.Internal.Pretty a => Hakyll.Core.Writable.Writable (Hakyll.Web.Dhall.DExpr a)
