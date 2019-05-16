@@ -1,5 +1,5 @@
 name:                hakyll-dhall
-version:             0.2.2.2
+version:             0.2.3.0
 github:              "mstksg/hakyll-dhall"
 license:             BSD3
 author:              "Justin Le"
@@ -35,7 +35,7 @@ ghc-options:
 
 dependencies:
 - base >= 4.7 && < 5
-- dhall >= 1.17
+- dhall >= 1.22
 - hakyll >= 4.10
 
 library:

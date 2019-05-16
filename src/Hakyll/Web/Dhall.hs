@@ -1,5 +1,4 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE CPP                 #-}
 {-# LANGUAGE ConstraintKinds     #-}
 {-# LANGUAGE DeriveDataTypeable  #-}
 {-# LANGUAGE DeriveGeneric       #-}
@@ -75,7 +74,7 @@ import           Control.Monad.IO.Class
 import           Control.Monad.Trans.State.Strict
 import           Data.Default.Class
 import           Data.IORef
-import           Data.Maybe
+import           Data.Maybe                            as M
 import           Data.Typeable                         (Typeable)
 import           Dhall
 import           Dhall.Binary
@@ -113,41 +112,18 @@ import qualified Data.Text.Prettyprint.Doc.Render.Text as PP
 newtype DExpr a = DExpr { getDExpr :: Expr Src a }
     deriving (Generic, Typeable)
 
-instance (DefaultDhallResolver a, PP.Pretty a) => Bi.Binary (DExpr a) where
+instance (PP.Pretty a, ToTerm a, FromTerm a) => Bi.Binary (DExpr a) where
     put = Bi.putBuilder
         . CBOR.toBuilder
         . CBOR.encodeTerm
-#if MIN_VERSION_dhall(1,18,0)
-        . encodeWithVersion defaultStandardVersion
-#else
-        . encode V_1_0
-#endif
-        . fmap toImport
+        . encode
         . getDExpr
-      where
-        toImport = case defaultDhallResolver @a of
-                     DRRaw  _ -> id
-                     DRFull _ -> absurd
     get = do
         bs     <- Bi.getRemainingLazyByteString
         (_, t) <- either (fail . show) pure $
                     CBOR.deserialiseFromBytes CBOR.decodeTerm bs
-        e      <- either (fail . show) pure $
-#if MIN_VERSION_dhall(1,18,0)
-                    decodeWithVersion t
-#else
-                    decode t
-#endif
-        DExpr <$> traverse fromImport e
-      where
-        fromImport i = case defaultDhallResolver @a of
-          DRRaw  _ -> pure i
-          DRFull _ -> fail $
-            "Unexpected import in deserialization of `DExpr X`: "
-              ++ T.unpack (iStr i)
-        iStr = PP.renderStrict
-             . PP.layoutSmart layoutOpts
-             . PP.pretty @Import
+        M.maybe (fail "dhall decode failure") (pure . DExpr) $
+            decode t
 
 -- | Automatically "pretty prints" in multi-line form.  For more
 -- fine-grained results, see 'dhallPrettyCompilerWith' and family.
