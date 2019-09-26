@@ -18,7 +18,7 @@
 #
 # resolver: ./custom-snapshot.yaml
 # resolver: https://example.com/snapshots/2018-01-01.yaml
-resolver: nightly-2019-06-28
+resolver: nightly-2019-09-21
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.
@@ -40,13 +40,13 @@ packages:
 # using the same syntax as the packages field.
 # (e.g., acme-missiles-0.3)
 extra-deps:
-- cborg-json-0.2.1.0
-- dhall-1.23.0
-- dotgen-0.4.2
-- hakyll-4.12.5.2
-- lrucache-1.2.0.1
-- repline-0.2.1.0
-- serialise-0.2.1.0
+# - cborg-json-0.2.1.0
+- dhall-1.26.1
+# - dotgen-0.4.2
+- hakyll-4.13.0.1
+# - lrucache-1.2.0.1
+# - repline-0.2.1.0
+# - serialise-0.2.1.0
 
 # Override default flag values for local packages and extra-deps
 flags:

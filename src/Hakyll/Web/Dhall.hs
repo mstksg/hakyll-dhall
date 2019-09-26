@@ -1,15 +1,18 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE ConstraintKinds     #-}
-{-# LANGUAGE DeriveDataTypeable  #-}
-{-# LANGUAGE DeriveGeneric       #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE KindSignatures      #-}
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE RecordWildCards     #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections       #-}
-{-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE AllowAmbiguousTypes  #-}
+{-# LANGUAGE ConstraintKinds      #-}
+{-# LANGUAGE DeriveDataTypeable   #-}
+{-# LANGUAGE DeriveGeneric        #-}
+{-# LANGUAGE FlexibleContexts     #-}
+{-# LANGUAGE GADTs                #-}
+{-# LANGUAGE KindSignatures       #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE RankNTypes           #-}
+{-# LANGUAGE RecordWildCards      #-}
+{-# LANGUAGE ScopedTypeVariables  #-}
+{-# LANGUAGE TupleSections        #-}
+{-# LANGUAGE TypeApplications     #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- |
 -- Module      : Hakyll.Web.Dhall
@@ -76,6 +79,7 @@ import           Data.Default.Class
 import           Data.IORef
 import           Data.Maybe                            as M
 import           Data.Typeable                         (Typeable)
+import           Data.Void
 import           Dhall
 import           Dhall.Binary
 import           Dhall.Core
@@ -116,7 +120,8 @@ instance (PP.Pretty a, ToTerm a, FromTerm a) => Bi.Binary (DExpr a) where
     put = Bi.putBuilder
         . CBOR.toBuilder
         . CBOR.encodeTerm
-        . encode
+        . encode @(Expr Void a)
+        . denote
         . getDExpr
     get = do
         bs     <- Bi.getRemainingLazyByteString
@@ -501,6 +506,7 @@ interpretDhallCompiler t e = case rawInput t e of
       Right t0  -> T.unpack
                  . PP.renderStrict
                  . PP.layoutSmart layoutOpts
+                 . doc
                  . diffNormalized (expected t)
                  $ t0
     Just x  -> pure x
@@ -567,13 +573,21 @@ resolveDhallImports DCO{..} d e = do
       iRef <- newIORef []
       res <- evalStateT (loadWith e) $
         emptyStatus (fromMaybe "./" d)
-          & resolver .~ \i -> do
+          & remote .~ \i -> do
               liftIO $ modifyIORef iRef (i:)
-              exprFromImport i
+              fetchRemote i
       (res,) <$> readIORef iRef
-    compilerTellDependencies $ mapMaybe mkDep imps
+    compilerTellDependencies $ mapMaybe (mkDep . u2i) imps
     pure res
   where
+    fetchRemote = _remote $ emptyStatus ""
+    u2i u = Import
+      { importHashed = ImportHashed
+            { hash       = Nothing
+            , importType = Remote u
+            }
+      , importMode   = Code
+      }
     DRFull{..} = _dcoResolver
     mkDep :: Import -> Maybe Dependency
     mkDep i = case importType (importHashed i) of

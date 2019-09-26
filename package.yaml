@@ -35,7 +35,7 @@ ghc-options:
 
 dependencies:
 - base >= 4.7 && < 5
-- dhall >= 1.22
+- dhall >= 1.25
 - hakyll >= 4.10
 
 library:
