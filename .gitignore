@@ -6,3 +6,4 @@ hakyll-dhall.cabal
 /_site
 /dist-newstyle
 /dist
+.ghc.environment.*

@@ -41,8 +41,14 @@ packages:
 # using the same syntax as the packages field.
 # (e.g., acme-missiles-0.3)
 extra-deps:
+- cborg-json-0.2.2.0
 - dhall-1.29.0
+- dotgen-0.4.2
 - hakyll-4.13.0.1
+- serialise-0.2.2.0
+- megaparsec-8.0.0
+- atomic-write-0.2.0.7
+- repline-0.2.2.0
 
 allow-newer: true
 
