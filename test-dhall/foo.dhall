@@ -1,3 +1,1 @@
-[ ./test1.dhall
-, ./test2.dhall
-]
+[ ./test1.dhall, ./test2.dhall ]

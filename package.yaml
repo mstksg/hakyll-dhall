@@ -35,18 +35,18 @@ ghc-options:
 
 dependencies:
 - base >= 4.7 && < 5
-- dhall >= 1.22
+- dhall >= 1.29
 - hakyll >= 4.10
 
 library:
   source-dirs: src
   dependencies:
   - binary
-  - cborg
   - containers
   - data-default-class
   - filepath
-  - lens-family-core
+  - microlens
+  - microlens-th
   - mtl
   - prettyprinter
   - text

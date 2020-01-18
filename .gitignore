@@ -1,5 +1,6 @@
 .stack-work/
 hakyll-dhall.cabal
+*.dump-hi
 *~
 /_cache
 /_site

@@ -2,12 +2,15 @@
 {-# LANGUAGE ConstraintKinds     #-}
 {-# LANGUAGE DeriveDataTypeable  #-}
 {-# LANGUAGE DeriveGeneric       #-}
+{-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE KindSignatures      #-}
+{-# LANGUAGE NamedFieldPuns      #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell     #-}
 {-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE TypeApplications    #-}
 
@@ -70,13 +73,12 @@ module Hakyll.Web.Dhall (
 
 import           Control.Monad
 import           Control.Monad.Error.Class
-import           Control.Monad.IO.Class
 import           Control.Monad.Trans.State.Strict
 import           Data.Default.Class
-import           Data.IORef
 import           Data.Maybe                            as M
 import           Data.Typeable                         (Typeable)
-import           Dhall
+import           Data.Void
+import           Dhall hiding                          (map)
 import           Dhall.Binary
 import           Dhall.Core
 import           Dhall.Diff
@@ -91,12 +93,10 @@ import           Hakyll.Core.Dependencies
 import           Hakyll.Core.Identifier
 import           Hakyll.Core.Item
 import           Hakyll.Core.Writable
-import           Lens.Family                           (LensLike, LensLike', (.~), (&))
+import           Lens.Micro
+import           Lens.Micro.TH
 import           System.FilePath
 import           System.IO
-import qualified Codec.CBOR.Read                       as CBOR
-import qualified Codec.CBOR.Term                       as CBOR
-import qualified Codec.CBOR.Write                      as CBOR
 import qualified Data.Binary                           as Bi
 import qualified Data.Binary.Get                       as Bi
 import qualified Data.Binary.Put                       as Bi
@@ -105,6 +105,7 @@ import qualified Data.Set                              as S
 import qualified Data.Text                             as T
 import qualified Data.Text.Prettyprint.Doc             as PP
 import qualified Data.Text.Prettyprint.Doc.Render.Text as PP
+import qualified Dhall.Map                             as DM
 
 -- | Newtype wrapper over @'Expr' 'Src' a@ (A Dhall expression) with an
 -- appropriate 'Bi.Binary' instance, meant to be usable as a compilable
@@ -112,18 +113,11 @@ import qualified Data.Text.Prettyprint.Doc.Render.Text as PP
 newtype DExpr a = DExpr { getDExpr :: Expr Src a }
     deriving (Generic, Typeable)
 
-instance (PP.Pretty a, ToTerm a, FromTerm a) => Bi.Binary (DExpr a) where
-    put = Bi.putBuilder
-        . CBOR.toBuilder
-        . CBOR.encodeTerm
-        . encode
-        . getDExpr
+instance Bi.Binary (DExpr Void) where
+    put = Bi.putLazyByteString . encodeExpression . denote . vacuous . getDExpr
     get = do
         bs     <- Bi.getRemainingLazyByteString
-        (_, t) <- either (fail . show) pure $
-                    CBOR.deserialiseFromBytes CBOR.decodeTerm bs
-        M.maybe (fail "dhall decode failure") (pure . DExpr) $
-            decode t
+        either (fail . show) (pure . DExpr . denote @Void) $ decodeExpression bs
 
 -- | Automatically "pretty prints" in multi-line form.  For more
 -- fine-grained results, see 'dhallPrettyCompilerWith' and family.
@@ -172,24 +166,6 @@ data DhallCompilerOptions a = DCO
     }
   deriving (Generic, Typeable)
 
--- | Lens for '_dcoResolver' field of 'DhallCompilerOptions'.
-dcoResolver
-    :: Functor f
-    => LensLike f (DhallCompilerOptions a) (DhallCompilerOptions b) (DhallResolver a) (DhallResolver b)
-dcoResolver f (DCO r m n) = (\r' -> DCO r' m n) <$> f r
-
--- | Lens for '_dcoMinimize' field of 'DhallCompilerOptions'.
-dcoMinimize
-    :: Functor f
-    => LensLike' f (DhallCompilerOptions a) Bool
-dcoMinimize f (DCO r m n) = (\m' -> DCO r m' n) <$> f m
-
--- | Lens for '_dcoNormalize' field of 'DhallCompilerOptions'.
-dcoNormalize
-    :: Functor f
-    => LensLike' f (DhallCompilerOptions a) Bool
-dcoNormalize f (DCO r m n) = DCO r m <$> f n
-
 -- | Method for resolving imports.
 --
 -- The choice will determine the type of expression that 'loadDhallExpr'
@@ -224,26 +200,26 @@ data DhallResolver :: K.Type -> K.Type where
                 -- That is, do not trust any dependencies on the local disk
                 -- outside of the project directory, but trust that any URL
                 -- imports remain unchanged.
-              } -> DhallResolver X
+              } -> DhallResolver Void
 
 -- | Lens for '_drRemap' field of 'DhallResolver'.
 drRemap
-    :: Functor f
-    => LensLike' f (DhallResolver Import) (Import -> Compiler (Expr Src Import))
+    :: Lens' (DhallResolver Import) (Import -> Compiler (Expr Src Import))
 drRemap f (DRRaw r) = DRRaw <$> f r
 
 -- | Lens for '_drFull' field of 'DhallResolver'.
 drFull
-    :: Functor f
-    => LensLike' f (DhallResolver X) (S.Set DhallCompilerTrust)
+    :: Lens' (DhallResolver Void) (S.Set DhallCompilerTrust)
 drFull f (DRFull t) = DRFull <$> f t
+
+makeLenses ''DhallCompilerOptions
 
 -- | Default 'DhallCompilerOptions'.  If the type variable is not
 -- inferrable, it can be helpful to use /TypeApplications/ syntax:
 --
 -- @
 -- 'defaultDhallCompilerOptions' \@'Import'     -- do not resolve imports
--- 'defaultDhallCompilerOptions' \@'X'          -- resolve imports
+-- 'defaultDhallCompilerOptions' \@'Void'          -- resolve imports
 -- @
 --
 -- Default values are:
@@ -278,7 +254,7 @@ instance DefaultDhallResolver Import where
 -- | Only trust remote imports remain unchanged.  Rebuild every time if any
 -- absolute, home-directory-based, or environment variable imports are in
 -- file.
-instance DefaultDhallResolver X where
+instance DefaultDhallResolver Void where
     defaultDhallResolver = DRFull $ S.singleton DCTRemote
 
 -- | @'def' = 'defaultDhallCompilerOptions'@
@@ -296,7 +272,7 @@ instance DefaultDhallResolver a => Default (DhallCompilerOptions a) where
 --
 -- @
 -- 'dhallRawPrettyCompiler'  = 'dhallPrettyCompiler' \@'Import'
--- 'dhallFullPrettyCompiler' = 'dhallPrettyCompiler' \@'X'
+-- 'dhallFullPrettyCompiler' = 'dhallPrettyCompiler' \@'Void'
 -- @
 --
 -- It might be more convenient to just use 'dhallRawCompiler' or
@@ -321,7 +297,7 @@ dhallRawPrettyCompiler = dhallPrettyCompilerWith @Import defaultDhallCompilerOpt
 -- dependencies.  Essentially a Dhall pretty-printer, (optional)
 -- normalizer, and re-formatter.
 dhallFullPrettyCompiler :: Compiler (Item String)
-dhallFullPrettyCompiler = dhallPrettyCompilerWith @X defaultDhallCompilerOptions
+dhallFullPrettyCompiler = dhallPrettyCompilerWith @Void defaultDhallCompilerOptions
 
 -- | 'dhallPrettyCompiler', but with custom 'DhallCompilerOptions'.
 dhallPrettyCompilerWith
@@ -368,7 +344,7 @@ renderDhallExprWith DCO{..} = case _dcoResolver of
 -- @
 -- 'match' "config/**.dhall" $ do
 --     'route' 'mempty'
---     'compile' $ 'dExprCompiler' \@'X'
+--     'compile' $ 'dExprCompiler' \@'Void'
 -- @
 --
 -- This will save all of the dhall files in the directory ./config in the
@@ -408,14 +384,14 @@ dExprCompilerWith dco = do
 -- interpret it as a value of the given type.  Tracks all dependencies, so
 -- will trigger rebuilds based on downstream changes.
 dhallCompiler
-    :: Type a
+    :: Decoder a
     -> Compiler (Item a)
 dhallCompiler = dhallCompilerWith defaultDhallCompilerOptions
 
 -- | 'dhallCompiler', but with custom 'DhallCompilerOptions'.
 dhallCompilerWith
-    :: DhallCompilerOptions X
-    -> Type a
+    :: DhallCompilerOptions Void
+    -> Decoder a
     -> Compiler (Item a)
 dhallCompilerWith dco t = do
     DExpr e <- itemBody <$> dExprCompilerWith dco
@@ -424,14 +400,14 @@ dhallCompilerWith dco t = do
 -- | Wrapper over 'load' and 'interpretDhallCompiler'.  Pulls up a 'DExpr'
 -- compiled or saved into the Hakyll cache and interprets it as a value.
 --
--- Expects item at identifier to be saved as @'DExpr' 'X'@ (possibly using
--- @'dExprCompiler' \@'X'@)
+-- Expects item at identifier to be saved as @'DExpr' 'Void'@ (possibly using
+-- @'dExprCompiler' \@'Void'@)
 --
 -- Tracks dependencies properly, so any pages or routes that use the saved
 -- Dhall expression will re-build if any of the downstream Dhall files are
 -- edited.
 loadDhall
-    :: Type a
+    :: Decoder a
     -> Identifier
     -> Compiler (Item a)
 loadDhall t i = do
@@ -442,14 +418,14 @@ loadDhall t i = do
 -- a 'DExpr' saved into the Hakyll cache as a snapshot and interprets it as
 -- a value.
 --
--- Expects item at identifier to be saved as @'DExpr' 'X'@ (possibly using
--- @'dExprCompiler' \@'X'@)
+-- Expects item at identifier to be saved as @'DExpr' 'Void'@ (possibly using
+-- @'dExprCompiler' \@'Void'@)
 --
 -- Tracks dependencies properly, so any pages or routes that use the saved
 -- Dhall expression will re-build if any of the downstream Dhall files are
 -- edited.
 loadDhallSnapshot
-    :: Type a
+    :: Decoder a
     -> Identifier
     -> Snapshot
     -> Compiler (Item a)
@@ -472,16 +448,16 @@ loadDhallSnapshot t i s = do
 -- To directly obtain a Dhall expression, see 'parseDhallExpr'.
 parseDhall
     :: Maybe FilePath                   -- ^ Override directory root
-    -> Type a
+    -> Decoder a
     -> T.Text
     -> Compiler (Item a)
 parseDhall = parseDhallWith defaultDhallCompilerOptions
 
 -- | Version of 'parseDhall' taking custom 'DhallCompilerOptions'.
 parseDhallWith
-    :: DhallCompilerOptions X
+    :: DhallCompilerOptions Void
     -> Maybe FilePath                   -- ^ Override directory root
-    -> Type a
+    -> Decoder a
     -> T.Text
     -> Compiler (Item a)
 parseDhallWith dco fp t b = do
@@ -489,11 +465,11 @@ parseDhallWith dco fp t b = do
     makeItem =<< interpretDhallCompiler t e
 
 -- | Interpret a fully resolved Dhall expression as a value of a type,
--- given a 'Type'. Run in 'Compiler' to integrate error handling with
--- Hakyll.
+-- given a 'Decoder'.  You can use this to integrate error handling with
+-- Hakyll, since it is run in a 'Compiler'.
 interpretDhallCompiler
-    :: Type a
-    -> Expr Src X
+    :: Decoder a
+    -> Expr Src Void
     -> Compiler a
 interpretDhallCompiler t e = case rawInput t e of
     Nothing -> throwError . (terr:) . (:[]) $ case typeOf e of
@@ -501,6 +477,7 @@ interpretDhallCompiler t e = case rawInput t e of
       Right t0  -> T.unpack
                  . PP.renderStrict
                  . PP.layoutSmart layoutOpts
+                 . doc
                  . diffNormalized (expected t)
                  $ t0
     Just x  -> pure x
@@ -547,8 +524,11 @@ parseRawDhallExprWith
     -> Compiler (Expr Src Import)
 parseRawDhallExprWith DCO{..} b =
     case exprFromText "Hakyll.Web.Dhall.parseRawDhallExprWith" b of
-      Left  e -> throwError . (:[]) $
-        "Error parsing raw dhall file: " ++ show e
+      Left  e -> throwError
+        [ "Error parsing raw dhall file"
+        , "<<" ++ T.unpack b ++ ">>"
+        , show e
+        ]
       Right e -> join <$> traverse (_drRemap _dcoResolver) e
 
 -- | Resolve all imports in a parsed Dhall expression.
@@ -558,20 +538,15 @@ parseRawDhallExprWith DCO{..} b =
 -- Hakyll, and so modifications to required files will also cause upstream
 -- files to be rebuilt.
 resolveDhallImports
-    :: DhallCompilerOptions X
+    :: DhallCompilerOptions Void
     -> Maybe FilePath                   -- ^ Override directory root
     -> Expr Src Import
-    -> Compiler (Expr Src X)
+    -> Compiler (Expr Src Void)
 resolveDhallImports DCO{..} d e = do
-    (res, imps) <- unsafeCompiler $ do
-      iRef <- newIORef []
-      res <- evalStateT (loadWith e) $
-        emptyStatus (fromMaybe "./" d)
-          & resolver .~ \i -> do
-              liftIO $ modifyIORef iRef (i:)
-              exprFromImport i
-      (res,) <$> readIORef iRef
-    compilerTellDependencies $ mapMaybe mkDep imps
+    (res, Status{_cache}) <- unsafeCompiler $
+        runStateT (loadWith e) (emptyStatus (fromMaybe "./" d))
+    let imps = mapMaybe (mkDep . chainedImport) (DM.keys _cache)
+    compilerTellDependencies imps
     pure res
   where
     DRFull{..} = _dcoResolver

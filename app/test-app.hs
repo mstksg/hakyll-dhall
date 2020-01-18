@@ -14,5 +14,5 @@ main = hakyll $ do
       route idRoute
       compile $ parseDhall
                   Nothing
-                  (auto :: Type String)
+                  (auto :: Decoder String)
                   "./test-dhall/parse-test.dhall"

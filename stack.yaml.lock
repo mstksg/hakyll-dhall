@@ -5,57 +5,22 @@
 
 packages:
 - completed:
-    hackage: cborg-json-0.2.1.0@sha256:af9137557002ca5308fe80570a9a29398dfb9708423870875223796760689ac3,1268
+    hackage: dhall-1.29.0@sha256:2bb41a7c354a155f6e62b61dfee7474b7bb8c3b474c689e56c6a1f7af37881b9,32058
     pantry-tree:
-      size: 274
-      sha256: fa0ca2dc2d6cdab48e5ef74ffe248670045fca98339d939e47215a5c3ebe47c0
+      size: 244291
+      sha256: 974a3764c28f7fe86fbd4117292ca4ba8da685e894656e683989fc4df0106d06
   original:
-    hackage: cborg-json-0.2.1.0
+    hackage: dhall-1.29.0
 - completed:
-    hackage: dhall-1.23.0@sha256:12a699b7ed30ee40b1a3e05dfd3eef1b053914a5aebeb2f76cc568306570e51b,30737
+    hackage: hakyll-4.13.0.1@sha256:0f27d74feaedc96648ec5377ecec2b35dd677516c9667d179462a350f2075628,8817
     pantry-tree:
-      size: 127759
-      sha256: d5c6ff3a3628ac42975364405f9c0dfac4ad0286667e2535839b4806e5438109
+      size: 7841
+      sha256: 4a4409d287ee3daabb0141e3ebd3d2e88ead7382ba5cc582733907b4a938c4a8
   original:
-    hackage: dhall-1.23.0
-- completed:
-    hackage: dotgen-0.4.2@sha256:309b7cc8a3593a8e48bee7b53020d5f72db156d58edf78a0214f58fbb84b292b,1402
-    pantry-tree:
-      size: 357
-      sha256: d03f332855d4d9b02e96931596e358202bd18032c323fb1abd8fe84299d259cd
-  original:
-    hackage: dotgen-0.4.2
-- completed:
-    hackage: hakyll-4.12.5.2@sha256:435eec729639a4bf0d58f3c7c71929600f4130f10241275d5e7df856cc8aae90,8677
-    pantry-tree:
-      size: 7631
-      sha256: bd0cbe9051fae2b109d4b8955fd55a710b61c5dfd8b132d444c72c8f9e65c855
-  original:
-    hackage: hakyll-4.12.5.2
-- completed:
-    hackage: lrucache-1.2.0.1@sha256:18fc3d7052012c7ab3cd395160f34b53c5e1ec5379cc45185baf35b90ffadc2e,1254
-    pantry-tree:
-      size: 619
-      sha256: 61b2a39a11873f2d8a577e1f6b5e848d2f465ea7f6837ce15436796d3a20eda0
-  original:
-    hackage: lrucache-1.2.0.1
-- completed:
-    hackage: repline-0.2.1.0@sha256:0f8e92d78e771afb9d41243c2b6ab9609fe02f94e676fae3caed66fa4ce09b18,1187
-    pantry-tree:
-      size: 323
-      sha256: f48833fb8a89fc4ede1b254bdfbc8937d82e694eb05bf936bf89293bab691700
-  original:
-    hackage: repline-0.2.1.0
-- completed:
-    hackage: serialise-0.2.1.0@sha256:8d6051f64c6ebfaf705195dd0b8dfb667617f2e674b290ed2e44985009e4f951,8242
-    pantry-tree:
-      size: 4056
-      sha256: 26f4c5d503a78001152b73868bd66c5b3479d9b62bb0134c6557815ced34402a
-  original:
-    hackage: serialise-0.2.1.0
+    hackage: hakyll-4.13.0.1
 snapshots:
 - completed:
-    size: 513872
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/nightly/2019/6/28.yaml
-    sha256: 60d99bc77de2ab71baaf7114873210155f84e8ae78350f113a1e6307a6b1995c
-  original: nightly-2019-06-28
+    size: 524154
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/14/20.yaml
+    sha256: 2f5099f69ddb6abfe64400fe1e6a604e8e628f55e6837211cd70a81eb0a8fa4d
+  original: lts-14.20
