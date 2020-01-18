@@ -78,7 +78,7 @@ matrix:
         packages:
         - libgmp-dev
     compiler: ': #stack 8.4.4'
-  - env: BUILD=stack ARGS="--resolver lts-13"
+  - env: BUILD=stack ARGS="--resolver lts-14"
     addons:
       apt:
         packages:
@@ -96,7 +96,7 @@ matrix:
   - env: BUILD=stack ARGS="--resolver lts-12"
     os: osx
     compiler: ': #stack 8.4.4 osx'
-  - env: BUILD=stack ARGS="--resolver lts-13"
+  - env: BUILD=stack ARGS="--resolver lts-14"
     os: osx
     compiler: ': #stack 8.6.5 osx'
   - env: BUILD=stack ARGS="--resolver nightly"
