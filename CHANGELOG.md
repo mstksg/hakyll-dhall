@@ -1,6 +1,15 @@
 CHANGELOG
 =========
 
+Version 0.2.4.0
+---------------
+
+*January 17, 2020*
+
+<https://github.com/mstksg/hakyll-dhall/releases/tag/v0.2.4.0>
+
+*   Compatibility with *dhall-1.29*, dropping support for previous dhalls.
+
 Version 0.2.3.0
 ---------------
 

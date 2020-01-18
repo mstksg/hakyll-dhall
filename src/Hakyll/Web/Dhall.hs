@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ConstraintKinds     #-}
+{-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE DeriveDataTypeable  #-}
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE FlexibleInstances   #-}
@@ -75,6 +76,7 @@ import           Control.Monad
 import           Control.Monad.Error.Class
 import           Control.Monad.Trans.State.Strict
 import           Data.Default.Class
+import           Data.Kind
 import           Data.Maybe                            as M
 import           Data.Typeable                         (Typeable)
 import           Data.Void
@@ -100,7 +102,6 @@ import           System.IO
 import qualified Data.Binary                           as Bi
 import qualified Data.Binary.Get                       as Bi
 import qualified Data.Binary.Put                       as Bi
-import qualified Data.Kind                             as K
 import qualified Data.Set                              as S
 import qualified Data.Text                             as T
 import qualified Data.Text.Prettyprint.Doc             as PP
@@ -176,7 +177,7 @@ data DhallCompilerOptions a = DCO
 -- none of them. Hopefully one day this library will offer the ability to
 -- resolve only certain types of imports (environment variables, absolute
 -- paths) and not others (remote network, local paths).
-data DhallResolver :: K.Type -> K.Type where
+data DhallResolver :: Type -> Type where
     -- | Leave imports as imports, but optionally remap the destinations.
     DRRaw  :: { _drRemap :: Import -> Compiler (Expr Src Import)
                 -- ^ Optionally remap the destinations.
