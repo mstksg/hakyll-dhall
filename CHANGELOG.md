@@ -1,6 +1,15 @@
 CHANGELOG
 =========
 
+Version 0.2.5.0
+---------------
+
+*December 27, 2023*
+
+<https://github.com/mstksg/hakyll-dhall/releases/tag/v0.2.5.0>
+
+*   Compatibility with *dhall-1.33*, dropping support for previous dhalls.
+
 Version 0.2.4.0
 ---------------
 

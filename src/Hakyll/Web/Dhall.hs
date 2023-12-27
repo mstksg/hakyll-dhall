@@ -74,6 +74,7 @@ module Hakyll.Web.Dhall (
 
 import           Control.Monad
 import           Control.Monad.Error.Class
+import           Data.Either.Validation
 import           Control.Monad.Trans.State.Strict
 import           Data.Default.Class
 import           Data.Kind
@@ -88,7 +89,6 @@ import           Dhall.Import
 import           Dhall.Parser
 import           Dhall.Pretty
 import           Dhall.TypeCheck
-import           GHC.Generics                          (Generic)
 import           Hakyll.Core.Compiler
 import           Hakyll.Core.Compiler.Internal
 import           Hakyll.Core.Dependencies
@@ -104,8 +104,8 @@ import qualified Data.Binary.Get                       as Bi
 import qualified Data.Binary.Put                       as Bi
 import qualified Data.Set                              as S
 import qualified Data.Text                             as T
-import qualified Data.Text.Prettyprint.Doc             as PP
-import qualified Data.Text.Prettyprint.Doc.Render.Text as PP
+import qualified Prettyprinter                         as PP
+import qualified Prettyprinter.Render.Text             as PP
 import qualified Dhall.Map                             as DM
 
 -- | Newtype wrapper over @'Expr' 'Src' a@ (A Dhall expression) with an
@@ -115,7 +115,10 @@ newtype DExpr a = DExpr { getDExpr :: Expr Src a }
     deriving (Generic, Typeable)
 
 instance Bi.Binary (DExpr Void) where
-    put = Bi.putLazyByteString . encodeExpression . denote . vacuous . getDExpr
+    put = Bi.putLazyByteString
+        . encodeExpression
+        . denote
+        . getDExpr
     get = do
         bs     <- Bi.getRemainingLazyByteString
         either (fail . show) (pure . DExpr . denote @Void) $ decodeExpression bs
@@ -475,12 +478,14 @@ interpretDhallCompiler
 interpretDhallCompiler t e = case rawInput t e of
     Nothing -> throwError . (terr:) . (:[]) $ case typeOf e of
       Left err  -> show err
-      Right t0  -> T.unpack
+      Right t0  -> case expected t of
+        Success tExpect -> T.unpack
                  . PP.renderStrict
                  . PP.layoutSmart layoutOpts
                  . doc
-                 . diffNormalized (expected t)
+                 . diffNormalized tExpect
                  $ t0
+        Failure q -> showDhallErrors "" q
     Just x  -> pure x
   where
     terr = "Error interpreting Dhall expression as desired type."
